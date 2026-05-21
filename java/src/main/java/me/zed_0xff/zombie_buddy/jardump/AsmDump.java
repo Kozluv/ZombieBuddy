@@ -28,7 +28,21 @@ import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 
 public class AsmDump extends CLIUtil {
-    private static final String DEPRECATED_ANN = "me.zed_0xff.zombie_buddy.Patch";
+    private static final String DEPRECATED_ANN_PREFIX = "me.zed_0xff.zombie_buddy.Patch";
+    private static final Set<String> DEPRECATED_ANNS = Set.of(
+        "me.zed_0xff.zombie_buddy.Patch",
+        "me.zed_0xff.zombie_buddy.Patch.Adapter",
+        "me.zed_0xff.zombie_buddy.annotations.Patch.Adapter"
+    );
+
+    private static boolean isDeprecated(String name) {
+        String flatName = name.replace('/', '.').replace('$', '.');
+        if (flatName.startsWith("L")) flatName = flatName.substring(1);
+        if (flatName.endsWith(";"))   flatName = flatName.substring(0, flatName.length() - 1);
+
+        return flatName.startsWith(DEPRECATED_ANN_PREFIX) || DEPRECATED_ANNS.contains(flatName);
+    }
+
     private static final int ASM_API = Opcodes.ASM9;
     private final JarContext m_ctx;
 
@@ -49,7 +63,7 @@ public class AsmDump extends CLIUtil {
     static String simpleName(String desc) {
         String name = Type.getType(desc).getClassName();
 
-        if (name.startsWith(DEPRECATED_ANN)) {
+        if (isDeprecated(name)) {
             return name;
         }
 
@@ -132,11 +146,6 @@ public class AsmDump extends CLIUtil {
     );
 
     boolean validateAnnotation(TypeDescription td, Map<String, MethodDescription> methods, Map<String, Object> values, Map<String, Rule> rules, Set<String> unkMembers) {
-        if (td.getCanonicalName().startsWith(DEPRECATED_ANN)) {
-            Logger.debug("deprecated annotation", td.getCanonicalName());
-            return false;
-        }
-
         boolean valid = true;
         for (MethodDescription m : methods.values()) {
             String name = m.getName();
@@ -194,7 +203,9 @@ public class AsmDump extends CLIUtil {
         sb.append(annotationName(desc));
 
         Set<String> unkMembers = new HashSet<>();
-        boolean valid = desc.startsWith(Internal.ANN_PREFIX) || validateAnnotation(desc, values, unkMembers);
+        boolean valid = !isDeprecated(desc) && (
+            desc.startsWith(Internal.ANN_PREFIX) || validateAnnotation(desc, values, unkMembers)
+        );
         int rowColor = valid ? (desc.contains("bytebuddy") ? BB_ANN_COLOR : ANN_COLOR) : RED;
 
         if (!values.isEmpty()) {
