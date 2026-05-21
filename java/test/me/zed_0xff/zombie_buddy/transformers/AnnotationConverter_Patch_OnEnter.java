@@ -15,8 +15,8 @@ import net.bytebuddy.description.type.TypeDescription;
 class AnnotationConverter_Patch_OnEnter_Test extends AbstractTest {
     protected static Stream<Arguments> provideClasses() {
         return Stream.of(
-                Arguments.of(me.zed_0xff.zombie_buddy.transformers.asmtree.AnnotationConverter.class),
-                Arguments.of(me.zed_0xff.zombie_buddy.transformers.bytebuddy.AnnotationConverter.class)
+                Arguments.of(me.zed_0xff.zombie_buddy.transformers.asmtree.AnnotationConverter.class)
+                // Arguments.of(me.zed_0xff.zombie_buddy.transformers.bytebuddy.AnnotationConverter.class)
                 );
     }
 

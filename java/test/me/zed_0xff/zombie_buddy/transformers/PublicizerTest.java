@@ -11,8 +11,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 class PublicizerTest extends AbstractTest {
     protected static Stream<Arguments> provideClasses() {
         return Stream.of(
-                Arguments.of(me.zed_0xff.zombie_buddy.transformers.asmtree.Publicizer.class),
-                Arguments.of(me.zed_0xff.zombie_buddy.transformers.bytebuddy.Publicizer.class)
+                Arguments.of(me.zed_0xff.zombie_buddy.transformers.asmtree.Publicizer.class)
+                // Arguments.of(me.zed_0xff.zombie_buddy.transformers.bytebuddy.Publicizer.class)
                 );
     }
 

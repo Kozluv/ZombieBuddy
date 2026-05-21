@@ -31,6 +31,7 @@ import me.zed_0xff.zombie_buddy.transformers.Transformer;
 public class Main extends CLIUtil {
     static boolean _showHelp    = false;
     static boolean _changedOnly = false;
+    static String _outputFile   = null;
     static HashSet<String> _classFilter = new HashSet<>();
 
     private enum Backend {
@@ -100,6 +101,7 @@ public class Main extends CLIUtil {
     private static final TransSpec[] TRANS_SPECS = {
         new TransSpec("resolve",  "Resolver",            "Resolve alternative names in annotations", TransOpt.DEFAULT),
         new TransSpec("convert",  "AnnotationConverter", "Convert ZombieBuddy annotations to ByteBuddy annotations", TransOpt.DEFAULT),
+        new TransSpec("bind",     "Binder",              "Bind the Adapter instances", TransOpt.DEFAULT),
         new TransSpec("pub-all",  "Publicizer",          "Publicize all members unconditionally"),
         new TransSpec("pub-cond", "Publicizer",          "Publicize if any annotations were converted by the previous steps", TransOpt.CONDITIONAL, TransOpt.DEFAULT),
         new TransSpec("noop",     "NoopTransformer",     "Do nothing (for testing/debugging purposes)"),
@@ -179,6 +181,7 @@ public class Main extends CLIUtil {
         System.out.println("    -t, --transformers Specify which transformers to apply (default:all)");
         System.out.println("    -c, --changed-only Dump only classes that were modified by transformers");
         System.out.println("    -C, --class CLASS  Dump only the specified class (can be used multiple times)");
+        System.out.println("    -o, --output FILE  Write modified classes to a JAR file");
         System.out.println();
         System.out.println("transformers:");
         Map<String, List<TransInfo>> bySuffix = TRANS_LIST.stream()
@@ -214,6 +217,7 @@ public class Main extends CLIUtil {
                      if (arg.equals("-h") || arg.equals("--help"))         _showHelp    = true;
                 else if (arg.equals("-c") || arg.equals("--changed-only")) _changedOnly = true;
                 else if (arg.equals("-C") || arg.equals("--class"))        _classFilter.add(args[++i]);
+                else if (arg.equals("-o") || arg.equals("--output"))       _outputFile = args[++i];
                 else if (arg.equals("-t") || arg.equals("--transformers")) {
                     if (i + 1 >= args.length) {
                         System.err.println("Error: Missing value for " + arg);
@@ -238,6 +242,7 @@ public class Main extends CLIUtil {
     }
 
     public static void processClass(String className, byte[] classBytes, JarContext jctx) throws IOException {
+        Logger.debug("processClass", className);
         byte[] rewritten      = classBytes.clone();
         ClassContext classCtx = new ClassContext(className, jctx);
 
@@ -246,6 +251,7 @@ public class Main extends CLIUtil {
             Transformer t = TRANS_MAP.get(trans_id).factory().get();
 
             var result = t.transform(rewritten, classCtx);
+            Logger.debug(className, result);
             if (result.modified() && result.bytes() != null) {
                 rewritten = result.bytes();
             }
@@ -289,6 +295,10 @@ public class Main extends CLIUtil {
                     System.err.println("Failed to read class: " + className);
                     e.printStackTrace();
                 }
+            }
+            if (jctx.hasNew() && _outputFile != null) {
+                jctx.writeTo(_outputFile);
+                System.out.println("[=] Modified classes written to " + _outputFile);
             }
         }
     }

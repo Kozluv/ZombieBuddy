@@ -1,18 +1,23 @@
 package me.zed_0xff.zombie_buddy.transformers;
 
-import me.zed_0xff.zombie_buddy.Logger;
-
 import java.io.Closeable;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.jar.JarFile;
 import java.util.Map;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.jar.JarOutputStream;
 
+import me.zed_0xff.zombie_buddy.Logger;
 import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.dynamic.ClassFileLocator;
-import net.bytebuddy.dynamic.ClassFileLocator.*;
+import net.bytebuddy.dynamic.ClassFileLocator.Compound;
+import net.bytebuddy.dynamic.ClassFileLocator.ForClassLoader;
+import net.bytebuddy.dynamic.ClassFileLocator.ForJarFile;
+import net.bytebuddy.dynamic.ClassFileLocator.Simple;
 import net.bytebuddy.jar.asm.Type;
+import net.bytebuddy.pool.TypePool;
 
 /**
  * Locator + {@link TypePool} layering for one jar (or test slice). {@link #setClassBytes(String, byte[])} keys and {@link ClassFileLocator#locate} names use the JVM
@@ -139,6 +144,22 @@ public class JarContext implements Closeable {
         m_newClassBytes.put(className, classBytes);
         m_curLocator = null;
         m_curPool = null;
+    }
+
+    public boolean hasNew() {
+        return !m_newClassBytes.isEmpty();
+    }
+
+    // writes m_newClassBytes to the given jar
+    public void writeTo(String fname) throws IOException {
+        try (JarOutputStream jos = new JarOutputStream(new FileOutputStream(fname))) {
+            for (var e : m_newClassBytes.entrySet()) {
+                JarEntry entry = new JarEntry(e.getKey().replace('.', '/') + ".class");
+                jos.putNextEntry(entry);
+                jos.write(e.getValue());
+                jos.closeEntry();
+            }
+        }
     }
 
     /*

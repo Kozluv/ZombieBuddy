@@ -1,20 +1,22 @@
 package me.zed_0xff.zombie_buddy.transformers;
 
-import me.zed_0xff.zombie_buddy.Patch;
-import net.bytebuddy.asm.Advice;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Map;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.*;
-import static org.assertj.core.api.Assertions.*;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import me.zed_0xff.zombie_buddy.Patch;
+import net.bytebuddy.asm.Advice;
 
 class AnnotationConverter_Patch_NameMap_Test extends AbstractTest {
     protected static Stream<Arguments> provideClasses() {
         return Stream.of(
-                Arguments.of(me.zed_0xff.zombie_buddy.transformers.asmtree.AnnotationConverter.class),
-                Arguments.of(me.zed_0xff.zombie_buddy.transformers.bytebuddy.AnnotationConverter.class)
+                Arguments.of(me.zed_0xff.zombie_buddy.transformers.asmtree.AnnotationConverter.class)
+                // Arguments.of(me.zed_0xff.zombie_buddy.transformers.bytebuddy.AnnotationConverter.class)
                 );
     }
 

@@ -10,7 +10,6 @@ public abstract class Transformer {
 
     protected void setModified() {
         m_modified = true;
-        m_ctx.setChanged();
     }
 
     protected boolean isModified() {
