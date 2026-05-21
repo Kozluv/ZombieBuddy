@@ -1,6 +1,6 @@
 package me.zed_0xff.zombie_buddy.testpatches;
 
-import me.zed_0xff.zombie_buddy.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 // has to be public class to work
 @Patch(className = "testjar.MouseCoordinates", methodName = "addMoveEvent", isAdvice = false)

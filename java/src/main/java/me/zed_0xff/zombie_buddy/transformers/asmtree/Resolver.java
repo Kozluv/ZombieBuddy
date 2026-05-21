@@ -14,9 +14,9 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
 import me.zed_0xff.zombie_buddy.Logger;
-import me.zed_0xff.zombie_buddy.Patch;
-import me.zed_0xff.zombie_buddy.Patch.Internal.Flags;
-import me.zed_0xff.zombie_buddy.Patch.Internal.MapBool;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch.Internal.Flags;
+import me.zed_0xff.zombie_buddy.annotations.Patch.Internal.MapBool;
 import me.zed_0xff.zombie_buddy.Utils;
 import me.zed_0xff.zombie_buddy.transformers.AnnCache;
 import net.bytebuddy.description.type.TypeDescription;
@@ -215,3 +215,4 @@ public class Resolver extends AbstractTransformer {
         return changed;
     }
 }
+

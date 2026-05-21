@@ -1,6 +1,6 @@
 package me.zed_0xff.zombie_buddy.testpatches;
 
-import me.zed_0xff.zombie_buddy.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 public class TargetPatchOverloadedMethods {
     // Scenario 1: Patch only the first method (calculate(int))

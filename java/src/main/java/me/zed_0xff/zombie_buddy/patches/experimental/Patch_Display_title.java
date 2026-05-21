@@ -4,7 +4,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 
 import me.zed_0xff.zombie_buddy.Agent;
-import me.zed_0xff.zombie_buddy.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 @Patch(className = "org.lwjglx.opengl.Display", methodName = "setTitle")
 public class Patch_Display_title {

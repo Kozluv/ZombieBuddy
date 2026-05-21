@@ -10,13 +10,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import io.github.classgraph.*;
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassInfo;
+import io.github.classgraph.ScanResult;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.implementation.bind.annotation.RuntimeType;
 import net.bytebuddy.implementation.MethodCall;
 import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.SuperMethodCall;
+import net.bytebuddy.implementation.bind.annotation.RuntimeType;
 import net.bytebuddy.matcher.ElementMatchers;
 
 /**

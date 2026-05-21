@@ -99,12 +99,13 @@ public class Main extends CLIUtil {
     }
 
     private static final TransSpec[] TRANS_SPECS = {
+        new TransSpec("compat",   "ZB2Compat",           "Convert ZB 2.x @Patch annotations", TransOpt.DEFAULT),
         new TransSpec("resolve",  "Resolver",            "Resolve alternative names in annotations", TransOpt.DEFAULT),
         new TransSpec("convert",  "AnnotationConverter", "Convert ZombieBuddy annotations to ByteBuddy annotations", TransOpt.DEFAULT),
         new TransSpec("bind",     "Binder",              "Bind the Adapter instances", TransOpt.DEFAULT),
         new TransSpec("pub-all",  "Publicizer",          "Publicize all members unconditionally"),
         new TransSpec("pub-cond", "Publicizer",          "Publicize if any annotations were converted by the previous steps", TransOpt.CONDITIONAL, TransOpt.DEFAULT),
-        new TransSpec("noop",     "NoopTransformer",     "Do nothing (for testing/debugging purposes)"),
+        new TransSpec("none",     "NoopTransformer",     "Do nothing (for testing/debugging purposes)"),
     };
 
     private static Supplier<Transformer> conditional(Supplier<? extends Transformer> factory) {
@@ -242,7 +243,6 @@ public class Main extends CLIUtil {
     }
 
     public static void processClass(String className, byte[] classBytes, JarContext jctx) throws IOException {
-        Logger.debug("processClass", className);
         byte[] rewritten      = classBytes.clone();
         ClassContext classCtx = new ClassContext(className, jctx);
 
@@ -251,7 +251,6 @@ public class Main extends CLIUtil {
             Transformer t = TRANS_MAP.get(trans_id).factory().get();
 
             var result = t.transform(rewritten, classCtx);
-            Logger.debug(className, result);
             if (result.modified() && result.bytes() != null) {
                 rewritten = result.bytes();
             }

@@ -1,9 +1,11 @@
 package me.zed_0xff.zombie_buddy.patches.experimental;
 
-import me.zed_0xff.zombie_buddy.*;
-
 import java.io.File;
 import java.net.URI;
+
+import me.zed_0xff.zombie_buddy.DirHider;
+import me.zed_0xff.zombie_buddy.Logger;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 public class Patch_hide_dirs {
 

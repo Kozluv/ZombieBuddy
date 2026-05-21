@@ -10,8 +10,8 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.MethodNode;
 
-import me.zed_0xff.zombie_buddy.Patch;
-import me.zed_0xff.zombie_buddy.Patch.Internal.Meta;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch.Internal.Meta;
 import me.zed_0xff.zombie_buddy.Utils;
 import me.zed_0xff.zombie_buddy.transformers.AnnCache;
 import me.zed_0xff.zombie_buddy.transformers.AnnCache.AnnInfo;

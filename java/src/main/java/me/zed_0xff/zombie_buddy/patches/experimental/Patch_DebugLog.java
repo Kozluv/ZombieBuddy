@@ -1,6 +1,7 @@
 package me.zed_0xff.zombie_buddy.patches.experimental;
 
-import me.zed_0xff.zombie_buddy.*;
+import me.zed_0xff.zombie_buddy.Logger;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 public class Patch_DebugLog {
     @Patch(className = "zombie.debug.DebugLog", methodName = "init")

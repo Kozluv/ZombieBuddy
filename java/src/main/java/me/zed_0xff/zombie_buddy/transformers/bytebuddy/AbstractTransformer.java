@@ -1,11 +1,17 @@
 package me.zed_0xff.zombie_buddy.transformers.bytebuddy;
 
-import me.zed_0xff.zombie_buddy.transformers.*;
-
 import java.util.HashMap;
 import java.util.Map;
 
-import net.bytebuddy.jar.asm.*;
+import me.zed_0xff.zombie_buddy.transformers.ClassContext;
+import me.zed_0xff.zombie_buddy.transformers.Transformer;
+import net.bytebuddy.jar.asm.ClassReader;
+import net.bytebuddy.jar.asm.ClassVisitor;
+import net.bytebuddy.jar.asm.ClassWriter;
+import net.bytebuddy.jar.asm.Label;
+import net.bytebuddy.jar.asm.MethodVisitor;
+import net.bytebuddy.jar.asm.Opcodes;
+import net.bytebuddy.jar.asm.Type;
 
 public abstract class AbstractTransformer extends Transformer {
     public static final int ASM_API = Opcodes.ASM9;
@@ -16,7 +22,7 @@ public abstract class AbstractTransformer extends Transformer {
             m_ctx = ctx;
             ClassWriter cw = new ClassWriter(0);
             new ClassReader(classBytes).accept(createVisitor(cw, classBytes), 0);
-            if (m_ctx.isChanged()) {
+            if (isModified()) {
                 byte[] newBytes = cw.toByteArray();
                 ctx.setClassBytes(newBytes);
                 return new Result(newBytes, true);

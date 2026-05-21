@@ -1,6 +1,6 @@
 package me.zed_0xff.zombie_buddy.testpatches;
 
-import me.zed_0xff.zombie_buddy.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 public class PatchOverloadedDrawText {
     @Patch(className = "testjar.OverloadedDrawTextTarget", methodName = "DrawText")

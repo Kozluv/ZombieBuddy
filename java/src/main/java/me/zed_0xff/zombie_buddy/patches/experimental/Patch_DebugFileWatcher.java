@@ -1,6 +1,6 @@
 // package me.zed_0xff.zombie_buddy.patches.experimental;
 // 
-// import me.zed_0xff.zombie_buddy.Patch;
+// import me.zed_0xff.zombie_buddy.annotations.Patch;
 // 
 // public class Patch_DebugFileWatcher {
 //     @Patch(className = "zombie.DebugFileWatcher", methodName = "init")

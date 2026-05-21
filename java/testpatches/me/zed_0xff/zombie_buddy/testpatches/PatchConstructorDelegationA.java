@@ -1,7 +1,7 @@
 package me.zed_0xff.zombie_buddy.testpatches;
 
 import me.zed_0xff.zombie_buddy.Accessor;
-import me.zed_0xff.zombie_buddy.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 /**
  * Test patch using MethodDelegation to replace a constructor with parameters.

@@ -1,6 +1,6 @@
 package me.zed_0xff.zombie_buddy.patches.experimental;
 
-import me.zed_0xff.zombie_buddy.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 import me.zed_0xff.zombie_buddy.Utils;
 
 import java.util.Arrays;

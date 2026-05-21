@@ -14,7 +14,6 @@ import java.util.List;
 
 import se.krka.kahlua.integration.annotations.LuaMethod;
 import se.krka.kahlua.vm.KahluaTable;
-
 import zombie.Lua.LuaManager;
 
 public class Exposer {

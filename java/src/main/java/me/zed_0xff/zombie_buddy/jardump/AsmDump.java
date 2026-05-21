@@ -11,8 +11,8 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import me.zed_0xff.zombie_buddy.Logger;
-import me.zed_0xff.zombie_buddy.Patch;
 import me.zed_0xff.zombie_buddy.Utils;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 import me.zed_0xff.zombie_buddy.transformers.JarContext;
 import me.zed_0xff.zombie_buddy.transformers.bytebuddy.AbstractTransformer;
 import net.bytebuddy.asm.Advice;
@@ -28,6 +28,7 @@ import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 
 public class AsmDump extends CLIUtil {
+    private static final String DEPRECATED_ANN = "me.zed_0xff.zombie_buddy.Patch";
     private static final int ASM_API = Opcodes.ASM9;
     private final JarContext m_ctx;
 
@@ -47,6 +48,10 @@ public class AsmDump extends CLIUtil {
     // "Ljava/util/regex/Pattern;" -> "Pattern"
     static String simpleName(String desc) {
         String name = Type.getType(desc).getClassName();
+
+        if (name.startsWith(DEPRECATED_ANN)) {
+            return name;
+        }
 
         int idx = name.lastIndexOf('.');
         return idx >= 0 ? name.substring(idx + 1) : name;
@@ -127,6 +132,11 @@ public class AsmDump extends CLIUtil {
     );
 
     boolean validateAnnotation(TypeDescription td, Map<String, MethodDescription> methods, Map<String, Object> values, Map<String, Rule> rules, Set<String> unkMembers) {
+        if (td.getCanonicalName().startsWith(DEPRECATED_ANN)) {
+            Logger.debug("deprecated annotation", td.getCanonicalName());
+            return false;
+        }
+
         boolean valid = true;
         for (MethodDescription m : methods.values()) {
             String name = m.getName();

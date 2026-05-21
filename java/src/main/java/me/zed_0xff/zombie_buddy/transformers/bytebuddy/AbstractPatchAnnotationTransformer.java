@@ -1,6 +1,6 @@
 package me.zed_0xff.zombie_buddy.transformers.bytebuddy;
 
-import me.zed_0xff.zombie_buddy.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;

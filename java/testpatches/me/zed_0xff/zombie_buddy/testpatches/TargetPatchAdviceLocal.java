@@ -1,6 +1,6 @@
 package me.zed_0xff.zombie_buddy.testpatches;
 
-import me.zed_0xff.zombie_buddy.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 // Test patch using @Patch.Local to share values between @OnEnter and @OnExit
 // Verifies that primitives are initialized to 0 and references to null

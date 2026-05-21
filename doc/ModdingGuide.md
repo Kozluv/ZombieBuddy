@@ -146,7 +146,7 @@ Use `PreMain` only for work that truly needs early hooks. Put normal initializat
 ```java
 package com.yourname.yourmod.patches;
 
-import me.zed_0xff.zombie_buddy.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 @Patch(className = "zombie.SomeGameClass", methodName = "someMethod", warmUp = true)
 public static class MyPatch {

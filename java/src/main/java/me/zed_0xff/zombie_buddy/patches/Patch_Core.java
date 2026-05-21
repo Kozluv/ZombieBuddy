@@ -1,6 +1,6 @@
 package me.zed_0xff.zombie_buddy.patches;
 
-import me.zed_0xff.zombie_buddy.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 import me.zed_0xff.zombie_buddy.Callbacks;
 
 import zombie.core.Core;

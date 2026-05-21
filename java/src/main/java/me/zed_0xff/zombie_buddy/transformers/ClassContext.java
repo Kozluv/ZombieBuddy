@@ -2,7 +2,7 @@ package me.zed_0xff.zombie_buddy.transformers;
 
 import java.util.Map;
 
-import me.zed_0xff.zombie_buddy.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 import net.bytebuddy.description.type.TypeDescription;
 
 /** Per-class view into a shared {@link JarContext}. Prefer one instance per {@code className} while mutating that jar slice; cached {@link #getCurrentTypeDesc()} can drift if the same name is updated through another {@code ClassContext} sharing {@code jctx}. */

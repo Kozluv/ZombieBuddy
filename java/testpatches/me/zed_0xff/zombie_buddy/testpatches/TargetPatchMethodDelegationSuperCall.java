@@ -1,6 +1,6 @@
 package me.zed_0xff.zombie_buddy.testpatches;
 
-import me.zed_0xff.zombie_buddy.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 // Test patch using MethodDelegation (isAdvice=false) with @SuperCall
 @Patch(className = "testjar.MethodDelegationSuperCallTarget", methodName = "multiply", isAdvice = false)

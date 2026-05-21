@@ -1,6 +1,6 @@
 package me.zed_0xff.zombie_buddy.testpatches;
 
-import me.zed_0xff.zombie_buddy.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 // Test patch using @Patch.Local to verify values can be assigned and persist
 // This demonstrates that @Local variables are initialized to default values (0 for primitives, null for references)

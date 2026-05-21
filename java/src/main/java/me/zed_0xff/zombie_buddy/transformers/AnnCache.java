@@ -1,7 +1,7 @@
 package me.zed_0xff.zombie_buddy.transformers;
 
-import me.zed_0xff.zombie_buddy.Patch;
-import me.zed_0xff.zombie_buddy.Patch.Internal.Meta;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch.Internal.Meta;
 
 import java.util.HashMap;
 import java.util.Map;

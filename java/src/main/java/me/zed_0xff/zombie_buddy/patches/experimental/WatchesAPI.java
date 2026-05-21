@@ -1,7 +1,5 @@
 package me.zed_0xff.zombie_buddy.patches.experimental;
 
-import me.zed_0xff.zombie_buddy.*;
-
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
@@ -11,14 +9,19 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import me.zed_0xff.zombie_buddy.Accessor;
+import me.zed_0xff.zombie_buddy.Callbacks;
+import me.zed_0xff.zombie_buddy.Exposer;
+import me.zed_0xff.zombie_buddy.Loader;
+import me.zed_0xff.zombie_buddy.Logger;
+import me.zed_0xff.zombie_buddy.Utils;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.pool.TypePool;
-
-import zombie.Lua.LuaManager;
 import se.krka.kahlua.vm.KahluaTable;
+import zombie.Lua.LuaManager;
 
 /**
  * Experimental API for watching arbitrary Java method calls.

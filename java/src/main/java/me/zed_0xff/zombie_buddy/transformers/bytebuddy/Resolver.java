@@ -1,8 +1,8 @@
 package me.zed_0xff.zombie_buddy.transformers.bytebuddy;
 
 import me.zed_0xff.zombie_buddy.Logger;
-import me.zed_0xff.zombie_buddy.Patch;
-import me.zed_0xff.zombie_buddy.Patch.Internal.Meta;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch.Internal.Meta;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.hasAnnotation;

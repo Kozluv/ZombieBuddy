@@ -1,6 +1,6 @@
 package me.zed_0xff.zombie_buddy.patches.experimental;
 
-import me.zed_0xff.zombie_buddy.*;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 /**
  * Patch UIManager.update() to poll non-GL tasks on every frame.

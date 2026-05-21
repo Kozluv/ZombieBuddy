@@ -1,7 +1,8 @@
 package me.zed_0xff.zombie_buddy.patches.experimental;
 
-import me.zed_0xff.zombie_buddy.*;
-
+import me.zed_0xff.zombie_buddy.Agent;
+import me.zed_0xff.zombie_buddy.Logger;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 import zombie.Lua.LuaManager;
 
 public class Patch_LuaManager {

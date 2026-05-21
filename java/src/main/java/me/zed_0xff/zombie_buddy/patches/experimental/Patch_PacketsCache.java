@@ -1,7 +1,8 @@
 package me.zed_0xff.zombie_buddy.patches.experimental;
 
-import me.zed_0xff.zombie_buddy.*;
-
+import me.zed_0xff.zombie_buddy.Logger;
+import me.zed_0xff.zombie_buddy.Utils;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 import zombie.network.packets.INetworkPacket;
 
 // doesn't work on _client_ without warmup

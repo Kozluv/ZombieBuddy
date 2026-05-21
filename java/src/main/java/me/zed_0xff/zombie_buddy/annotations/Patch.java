@@ -1,4 +1,4 @@
-package me.zed_0xff.zombie_buddy;
+package me.zed_0xff.zombie_buddy.annotations;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Repeatable;
@@ -261,7 +261,7 @@ public @interface Patch {
     }
 
     public static final class Internal {
-        public static final String ANN_PREFIX = "Lme/zed_0xff/zombie_buddy/Patch$";
+        public static final String ANN_PREFIX = "Lme/zed_0xff/zombie_buddy/annotations/Patch$";
 
         private Internal() {}
 
@@ -303,25 +303,25 @@ public @interface Patch {
 
     /** Runtime registry for field-name resolution maps bound via {@code @Patch.NameMap} parameters.
      *  Populated by PatchTransformer at instrumentation time; read by inlined advice bytecode. */
-    public final class NameStore {
+    public static final class NameStore {
         private static final ConcurrentHashMap<String, Map<String, String>> store = new ConcurrentHashMap<>();
 
         public static Map<String, String> get(String key) { return store.get(key); }
-        static void put(String key, Map<String, String> map) { if (map != null) store.put(key, map); }
+        public static void put(String key, Map<String, String> map) { if (map != null) store.put(key, map); }
 
         private NameStore() {}
     }
 
     /** Runtime registry for method handles bound via parameter-level {@code @Patch.MemberHandle}.
      *  Populated by PatchTransformer at instrumentation time; read by inlined advice bytecode. */
-    static final class HandleStore {
+    public static final class HandleStore {
         private static final ConcurrentHashMap<String, java.lang.invoke.MethodHandle> methodHandles = new ConcurrentHashMap<>();
         private static final ConcurrentHashMap<String, java.lang.invoke.VarHandle>    varHandles    = new ConcurrentHashMap<>();
 
         public static java.lang.invoke.MethodHandle getMethod(String key)   { return methodHandles.get(key); }
         public static java.lang.invoke.VarHandle    getVar(String key)      { return varHandles.get(key); }
-        static void putMethod(String key, java.lang.invoke.MethodHandle mh) { if (mh != null) methodHandles.put(key, mh); }
-        static void putVar(String key, java.lang.invoke.VarHandle vh)       { if (vh != null) varHandles.put(key, vh); }
+        public static void putMethod(String key, java.lang.invoke.MethodHandle mh) { if (mh != null) methodHandles.put(key, mh); }
+        public static void putVar(String key, java.lang.invoke.VarHandle vh)       { if (vh != null) varHandles.put(key, vh); }
 
         private HandleStore() {}
     }

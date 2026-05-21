@@ -2,7 +2,7 @@ package me.zed_0xff.zombie_buddy.testpatches;
 
 import java.lang.invoke.MethodHandle;
 
-import me.zed_0xff.zombie_buddy.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 import testjar.MemberHandleHelper;
 
 // verifies: parameter-level @MethodHandle resolves a method handle and injects it as a local in the advice body

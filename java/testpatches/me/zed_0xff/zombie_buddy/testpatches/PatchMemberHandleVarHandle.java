@@ -2,7 +2,7 @@ package me.zed_0xff.zombie_buddy.testpatches;
 
 import java.lang.invoke.VarHandle;
 
-import me.zed_0xff.zombie_buddy.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 // verifies: @VarHandle resolves a field by name and makes it accessible via VarHandle
 // Uses MemberHandleHelper (already loaded via PatchMemberHandle) as target to avoid the

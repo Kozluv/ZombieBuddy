@@ -64,7 +64,7 @@ Previously, Java mods for Project Zomboid required bundling `.class` files and m
 ## Example: Creating a Patch
 
 ```java
-import me.zed_0xff.zombie_buddy.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 @Patch(className = "zombie.SomeGameClass", methodName = "someMethod")
 public static class MyPatch {

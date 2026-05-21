@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.loading.ByteArrayClassLoader;
@@ -341,11 +342,16 @@ final class PatchTransformer {
                         @Override
                         public void visitVarInsn(int opcode, int var) {
                             if (opcode == Opcodes.ALOAD) {
+                                String annPrefix = Patch.Internal.ANN_PREFIX;
+                                if (annPrefix.startsWith("L")) annPrefix = annPrefix.substring(1);
+                                if (!annPrefix.endsWith("$"))  annPrefix = annPrefix + "$";
+                                // annPrefix = "me/zed_0xff/zombie_buddy/annotations/Patch$"
+
                                 String storeKey = allHandleSlots.get(var);
                                 if (storeKey != null) {
                                     boolean isVar = paramHandleInfos.get(storeKey) instanceof IVarHandle;
                                     mv.visitLdcInsn(storeKey);
-                                    mv.visitMethodInsn(Opcodes.INVOKESTATIC, "me/zed_0xff/zombie_buddy/Patch$HandleStore",
+                                    mv.visitMethodInsn(Opcodes.INVOKESTATIC, annPrefix + "HandleStore",
                                         isVar ? "getVar" : "getMethod",
                                         isVar ? "(Ljava/lang/String;)Ljava/lang/invoke/VarHandle;" : "(Ljava/lang/String;)Ljava/lang/invoke/MethodHandle;",
                                         false);
@@ -354,7 +360,7 @@ final class PatchTransformer {
                                 storeKey = nameMapSlots.get(var);
                                 if (storeKey != null) {
                                     mv.visitLdcInsn(storeKey);
-                                    mv.visitMethodInsn(Opcodes.INVOKESTATIC, "me/zed_0xff/zombie_buddy/Patch$NameStore",
+                                    mv.visitMethodInsn(Opcodes.INVOKESTATIC, annPrefix + "NameStore",
                                         "get", "(Ljava/lang/String;)Ljava/util/Map;", false);
                                     return;
                                 }
