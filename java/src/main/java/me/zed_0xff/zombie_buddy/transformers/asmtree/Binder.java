@@ -1,11 +1,11 @@
 package me.zed_0xff.zombie_buddy.transformers.asmtree;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
+import static org.objectweb.asm.Opcodes.AASTORE;
 import static org.objectweb.asm.Opcodes.ACC_PRIVATE;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
 import static org.objectweb.asm.Opcodes.ALOAD;
-import static org.objectweb.asm.Opcodes.AASTORE;
 import static org.objectweb.asm.Opcodes.ANEWARRAY;
 import static org.objectweb.asm.Opcodes.DUP;
 import static org.objectweb.asm.Opcodes.GETFIELD;
@@ -19,7 +19,6 @@ import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
 import static org.objectweb.asm.Opcodes.IRETURN;
 import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.PUTSTATIC;
-import static org.objectweb.asm.Opcodes.RETURN;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,20 +29,20 @@ import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
-import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 import me.zed_0xff.zombie_buddy.Logger;
-import me.zed_0xff.zombie_buddy.annotations.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Shadow;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 
-/** {@link Patch.Adapter.Method} stubs → static {@link java.lang.invoke.MethodHandle} + {@code invokeExact} body; handles wired by explicit {@code init(): boolean}. */
+/** {@link Shadow.Method} stubs → static {@link java.lang.invoke.MethodHandle} + {@code invokeExact} body; handles wired by explicit {@code init(): boolean}. */
 public class Binder extends AbstractTransformer {
 
     private static final String REFLECT       = "me/zed_0xff/zombie_buddy/Reflect";
@@ -53,7 +52,7 @@ public class Binder extends AbstractTransformer {
     @Override
     protected boolean transformNode(ClassNode cn) {
         TypeDescription adapterTd = m_ctx.getCurrentTypeDesc();
-        var adapterAnn = adapterTd.getDeclaredAnnotations().ofType(Patch.Adapter.class);
+        var adapterAnn = adapterTd.getDeclaredAnnotations().ofType(Shadow.class);
         if (adapterAnn == null) return false;
 
         String targetBin = adapterAnn.load().value();
@@ -78,9 +77,9 @@ public class Binder extends AbstractTransformer {
 
             MethodDescription.InDefinedShape adapterMethod = method(adapterTd, mn);
             if (adapterMethod == null) continue;
-            if (adapterMethod.getDeclaredAnnotations().isAnnotationPresent(Patch.Adapter.Intrinsic.class)) continue;
+            if (adapterMethod.getDeclaredAnnotations().isAnnotationPresent(Shadow.Intrinsic.class)) continue;
 
-            var bindAnn = adapterMethod.getDeclaredAnnotations().ofType(Patch.Adapter.Method.class);
+            var bindAnn = adapterMethod.getDeclaredAnnotations().ofType(Shadow.Method.class);
             if (bindAnn == null) continue;
 
             String[] names = resolveMethod(td, mn, bindAnn.load());
@@ -127,7 +126,7 @@ public class Binder extends AbstractTransformer {
         return pref != null ? pref.name : fb != null ? fb.name : null;
     }
 
-    private static String[] resolveMethod(TypeDescription td, MethodNode mn, Patch.Adapter.Method methAnn) {
+    private static String[] resolveMethod(TypeDescription td, MethodNode mn, Shadow.Method methAnn) {
         String[] cands = methAnn.value().length == 0 ? new String[] { mn.name } : methAnn.value();
         for (String c : cands) {
             var ms = td.getDeclaredMethods().filter(named(c).and(m -> m.getDescriptor().equals(mn.desc)));

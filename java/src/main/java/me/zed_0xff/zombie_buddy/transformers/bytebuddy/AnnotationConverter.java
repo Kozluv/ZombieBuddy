@@ -8,7 +8,7 @@ import net.bytebuddy.jar.asm.AnnotationVisitor;
 import net.bytebuddy.jar.asm.Type;
 
 /*
- * converts ZombieBuddy annotations to ByteBuddy's, driven by @Patch.Internal.Meta metadata
+ * converts ZombieBuddy annotations to ByteBuddy's, driven by @Internal.Meta metadata
  */
 public class AnnotationConverter extends AbstractPatchAnnotationTransformer {
     boolean bKeepOriginalAnnotations = true;

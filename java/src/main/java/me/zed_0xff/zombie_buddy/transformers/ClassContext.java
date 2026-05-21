@@ -2,13 +2,14 @@ package me.zed_0xff.zombie_buddy.transformers;
 
 import java.util.Map;
 
+import me.zed_0xff.zombie_buddy.annotations.Internal;
 import me.zed_0xff.zombie_buddy.annotations.Patch;
 import net.bytebuddy.description.type.TypeDescription;
 
 /** Per-class view into a shared {@link JarContext}. Prefer one instance per {@code className} while mutating that jar slice; cached {@link #getCurrentTypeDesc()} can drift if the same name is updated through another {@code ClassContext} sharing {@code jctx}. */
 public class ClassContext {
-    /** Lazily built from {@link Patch} nested annotations + {@link Patch.Internal.Meta}; JVM-wide, keyed by ZB annotation ASM descriptor ({@code Lme/zed_0xff/zombie_buddy/Patch$…;}). */
-    private static volatile Map<String, Patch.Internal.Meta[]> PATCH_META_BY_ZB_DESC;
+    /** Lazily built from {@link Patch} nested annotations + {@link Internal.Meta}; JVM-wide, keyed by ZB annotation ASM descriptor ({@code Lme/zed_0xff/zombie_buddy/Patch$…;}). */
+    private static volatile Map<String, Internal.Meta[]> PATCH_META_BY_ZB_DESC;
 
     private final String          m_className;
     private final TypeDescription m_origDesc;

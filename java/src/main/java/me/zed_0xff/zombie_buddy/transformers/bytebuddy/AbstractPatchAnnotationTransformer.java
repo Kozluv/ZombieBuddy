@@ -1,13 +1,14 @@
 package me.zed_0xff.zombie_buddy.transformers.bytebuddy;
 
-import me.zed_0xff.zombie_buddy.annotations.Patch;
-
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
 
-import net.bytebuddy.jar.asm.*;
+import me.zed_0xff.zombie_buddy.annotations.Internal;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
+import net.bytebuddy.jar.asm.AnnotationVisitor;
+import net.bytebuddy.jar.asm.Type;
 
 /*
  * base class for transformers that rewrite patch annotations (e.g. AlternativeResolver, AnnotationConverter)
@@ -18,18 +19,18 @@ public abstract class AbstractPatchAnnotationTransformer extends AbstractParamAw
         for (Class<?> ann : Patch.class.getDeclaredClasses()) {
             if (!ann.isAnnotation()) continue;
 
-            Patch.Internal.Meta[] metas = ann.getAnnotationsByType(Patch.Internal.Meta.class);
+            Internal.Meta[] metas = ann.getAnnotationsByType(Internal.Meta.class);
             if (metas.length == 0) continue;
 
             Map<String, MapBoolInfo> mapBools          = new HashMap<>();
-            Map<String, Patch.Internal.Flags> mapFlags = new HashMap<>();
+            Map<String, Internal.Flags> mapFlags = new HashMap<>();
 
             // annotation elements (parameters)
             for (Method elem : ann.getDeclaredMethods()) {
-                Patch.Internal.MapBool mb = elem.getAnnotation(Patch.Internal.MapBool.class);
+                Internal.MapBool mb = elem.getAnnotation(Internal.MapBool.class);
                 if (mb != null) mapBools.put(elem.getName(), new MapBoolInfo(resolveType(mb.onTrue()), resolveType(mb.onFalse())));
 
-                Patch.Internal.Flags flags = elem.getAnnotation(Patch.Internal.Flags.class);
+                Internal.Flags flags = elem.getAnnotation(Internal.Flags.class);
                 if (flags != null) mapFlags.put(elem.getName(), flags);
             }
 
@@ -39,22 +40,22 @@ public abstract class AbstractPatchAnnotationTransformer extends AbstractParamAw
             // for (var meta : metas) {
             //     if (meta.targetAnnotation() != null && meta.targetAnnotation() != void.class) {
             //         desc = Type.getDescriptor(meta.targetAnnotation());
-            //         PATCH_ANN_MAP.put(desc, new AnnInfo(desc, new Patch.Internal.Meta[]{ meta }, mapBools, mapFlags, true));
+            //         PATCH_ANN_MAP.put(desc, new AnnInfo(desc, new Internal.Meta[]{ meta }, mapBools, mapFlags, true));
             //     }
             // }
         }
     }
 
     protected static Type resolveType(Class<?> cls) {
-        return (cls == Patch.Internal.DropAnnParam.class) ? null : Type.getType(cls);
+        return (cls == Internal.DropAnnParam.class) ? null : Type.getType(cls);
     }
 
     protected record MapBoolInfo(Type onTrue, Type onFalse) {} // null means drop annotation element, i.e. fallback to default
     protected record AnnInfo(
             String                            descriptor,
-            Patch.Internal.Meta[]             metas,
+            Internal.Meta[]             metas,
             Map<String, MapBoolInfo>          mapBools,
-            Map<String, Patch.Internal.Flags> mapFlags,
+            Map<String, Internal.Flags> mapFlags,
             boolean                           isTarget
     ) {}
 

@@ -1,16 +1,14 @@
 package me.zed_0xff.zombie_buddy.transformers.bytebuddy;
 
 import me.zed_0xff.zombie_buddy.Logger;
+import me.zed_0xff.zombie_buddy.annotations.Internal;
 import me.zed_0xff.zombie_buddy.annotations.Patch;
-import me.zed_0xff.zombie_buddy.annotations.Patch.Internal.Meta;
-
-import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.hasAnnotation;
-
-import net.bytebuddy.description.annotation.AnnotationDescription;
 import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.description.method.ParameterDescription;
-import net.bytebuddy.jar.asm.*;
+import net.bytebuddy.jar.asm.AnnotationVisitor;
+import net.bytebuddy.jar.asm.ClassVisitor;
+import net.bytebuddy.jar.asm.ClassWriter;
+import net.bytebuddy.jar.asm.MethodVisitor;
+import net.bytebuddy.jar.asm.Type;
 
 /*
  * resolves alternative names like Field("CHUNKS_PER_WIDTH", "ChunksPerWidth") to the first one that exists in the target class
@@ -102,16 +100,16 @@ public class Resolver extends AbstractPatchAnnotationTransformerV2 {
                 mi.annDesc()
                     .getAnnotationType()
                     .getDeclaredMethods()
-                    .filter(m -> m.getDeclaredAnnotations().isAnnotationPresent(Patch.Internal.Flags.class))
+                    .filter(m -> m.getDeclaredAnnotations().isAnnotationPresent(Internal.Flags.class))
                     .forEach(m -> {
-                        Patch.Internal.Flags flags = m.getDeclaredAnnotations().ofType(Patch.Internal.Flags.class).load();
+                        Internal.Flags flags = m.getDeclaredAnnotations().ofType(Internal.Flags.class).load();
                         // Logger.debug("  ", m, flags);
                     });
 
                 // if (methods.isEmpty()) { Logger.warn("No annotation element found for parameter:", paramName, "in", mi.annDesc()); break; }
                 //
                 // MethodDescription.InDefinedShape method = methods.get(0);
-                // AnnotationDescription flags = method.getDeclaredAnnotations().ofType(Patch.Internal.Flags.class);
+                // AnnotationDescription flags = method.getDeclaredAnnotations().ofType(Internal.Flags.class);
                 // if (flags == null) break;
                 //
                 // Logger.debug("flags", flags);

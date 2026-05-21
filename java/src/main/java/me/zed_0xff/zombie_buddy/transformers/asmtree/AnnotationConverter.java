@@ -10,15 +10,16 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.MethodNode;
 
-import me.zed_0xff.zombie_buddy.annotations.Patch;
-import me.zed_0xff.zombie_buddy.annotations.Patch.Internal.Meta;
 import me.zed_0xff.zombie_buddy.Utils;
+import me.zed_0xff.zombie_buddy.annotations.Internal;
+import me.zed_0xff.zombie_buddy.annotations.Internal.Meta;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
 import me.zed_0xff.zombie_buddy.transformers.AnnCache;
 import me.zed_0xff.zombie_buddy.transformers.AnnCache.AnnInfo;
 
 /**
- * For each {@code @Patch.*} annotation that declares {@link Patch.Internal.Meta}, appends the matching target annotation
- * (same visibility list; element values shallow-copied, optional {@link Patch.Internal.Meta#targetParamNames()} rename).
+ * For each {@code @Patch.*} annotation that declares {@link Internal.Meta}, appends the matching target annotation
+ * (same visibility list; element values shallow-copied, optional {@link Internal.Meta#targetParamNames()} rename).
  * ZombieBuddy annotations are left in place.
  */
 public class AnnotationConverter extends AbstractTransformer {
@@ -103,10 +104,10 @@ public class AnnotationConverter extends AbstractTransformer {
 
         for (var elem : ai.td().getDeclaredMethods().asDefined()) {
             var elemAnns = elem.getDeclaredAnnotations();
-            var flags_ = elemAnns.ofType(Patch.Internal.Flags.class);
+            var flags_ = elemAnns.ofType(Internal.Flags.class);
             if (flags_ == null) continue;
 
-            Patch.Internal.Flags flags = flags_.load();
+            Internal.Flags flags = flags_.load();
             if (!Utils.isBlank(flags.targetElement()) && els.containsKey(elem.getName())) {
                 els.put(flags.targetElement(), els.remove(elem.getName()));
             }

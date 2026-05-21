@@ -15,7 +15,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 
+import me.zed_0xff.zombie_buddy.annotations.Internal;
 import me.zed_0xff.zombie_buddy.annotations.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Shadow;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.loading.ByteArrayClassLoader;
@@ -51,7 +53,7 @@ final class PatchTransformer {
     static {
         final Map<String, String> common_map = new HashMap<>();
         common_map.put(Type.getDescriptor(Patch.This.class),         Type.getDescriptor(Advice.This.class));
-        common_map.put(Type.getDescriptor(Patch.Adapter.class),      Type.getDescriptor(Advice.Local.class));
+        common_map.put(Type.getDescriptor(Shadow.class),             Type.getDescriptor(Advice.Local.class));
         common_map.put(Type.getDescriptor(Patch.Argument.class),     Type.getDescriptor(Advice.Argument.class));
         common_map.put(Type.getDescriptor(Patch.AllArguments.class), Type.getDescriptor(Advice.AllArguments.class));
         common_map.put(Type.getDescriptor(Patch.Field.class),        Type.getDescriptor(Advice.FieldValue.class));
@@ -164,7 +166,7 @@ final class PatchTransformer {
                 }
                 if (!needsTransformation) {
                     for (java.lang.reflect.Parameter param : method.getParameters()) {
-                        if (param.isAnnotationPresent(Patch.Adapter.class)      ||
+                        if (param.isAnnotationPresent(Shadow.class)             ||
                             param.isAnnotationPresent(Patch.Argument.class)     ||
                             param.isAnnotationPresent(Patch.Field.class)        ||
                             param.isAnnotationPresent(Patch.FieldRW.class)      ||
@@ -342,7 +344,7 @@ final class PatchTransformer {
                         @Override
                         public void visitVarInsn(int opcode, int var) {
                             if (opcode == Opcodes.ALOAD) {
-                                String annPrefix = Patch.Internal.ANN_PREFIX;
+                                String annPrefix = Internal.ANN_PREFIX;
                                 if (annPrefix.startsWith("L")) annPrefix = annPrefix.substring(1);
                                 if (!annPrefix.endsWith("$"))  annPrefix = annPrefix + "$";
                                 // annPrefix = "me/zed_0xff/zombie_buddy/annotations/Patch$"
@@ -360,7 +362,7 @@ final class PatchTransformer {
                                 storeKey = nameMapSlots.get(var);
                                 if (storeKey != null) {
                                     mv.visitLdcInsn(storeKey);
-                                    mv.visitMethodInsn(Opcodes.INVOKESTATIC, annPrefix + "NameStore",
+                                    mv.visitMethodInsn(Opcodes.INVOKESTATIC, annPrefix + "NameStore", // FIXME + TESTME
                                         "get", "(Ljava/lang/String;)Ljava/util/Map;", false);
                                     return;
                                 }
@@ -472,7 +474,7 @@ final class PatchTransformer {
                         ByteArrayClassLoader.PersistenceHandler.MANIFEST);
                 Class<?> freshClass = freshLoader.loadClass(patchClass.getName());
                 for (var e : nameMapKeyToMethod.entrySet())
-                    Patch.NameStore.put(e.getKey(), Map.copyOf(methodResolutions.getOrDefault(e.getValue(), Map.of())));
+                    Internal.NameStore.put(e.getKey(), Map.copyOf(methodResolutions.getOrDefault(e.getValue(), Map.of())));
                 if (!memberHandles.isEmpty() && !populateMemberHandles(freshClass, patchClass, memberHandles)) return null;
                 if (!paramHandleInfos.isEmpty() && !populateParamHandles(paramHandleInfos)) return null;
                 return freshClass;
@@ -520,14 +522,14 @@ final class PatchTransformer {
             (k, h) -> { setStaticField(freshClass, k, h); if (originalClass != freshClass) setStaticField(originalClass, k, h); return true; });
     }
 
-    /** Resolves handles for parameter-level {@code @Patch.MemberHandle} and stores them in {@link Patch.HandleStore}.
+    /** Resolves handles for parameter-level {@code @Patch.MemberHandle} and stores them in {@link Internal.HandleStore}.
      *  Returns false if any non-optional handle could not be resolved (caller should drop the patch). */
     private static boolean populateParamHandles(Map<String, IMemberHandle> infos) {
         return populateHandles(infos,
             (k, i) -> "Parameter MemberHandle not resolved: " + k,
             (k, h) -> {
-                if (h instanceof MethodHandle mh) { Patch.HandleStore.putMethod(k, mh); return true; }
-                if (h instanceof VarHandle    vh) { Patch.HandleStore.putVar(k, vh); return true; }
+                if (h instanceof MethodHandle mh) { Internal.HandleStore.putMethod(k, mh); return true; }
+                if (h instanceof VarHandle    vh) { Internal.HandleStore.putVar(k, vh); return true; }
                 Logger.error("Parameter MemberHandle resolved to unexpected type " + h.getClass() + " for key " + k);
                 return false;
             });

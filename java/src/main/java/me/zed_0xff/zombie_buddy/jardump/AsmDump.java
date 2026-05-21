@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 
 import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.Utils;
-import me.zed_0xff.zombie_buddy.annotations.Patch;
+import me.zed_0xff.zombie_buddy.annotations.Internal;
 import me.zed_0xff.zombie_buddy.transformers.JarContext;
 import me.zed_0xff.zombie_buddy.transformers.bytebuddy.AbstractTransformer;
 import net.bytebuddy.asm.Advice;
@@ -194,7 +194,7 @@ public class AsmDump extends CLIUtil {
         sb.append(annotationName(desc));
 
         Set<String> unkMembers = new HashSet<>();
-        boolean valid = desc.startsWith(Patch.Internal.ANN_PREFIX) || validateAnnotation(desc, values, unkMembers);
+        boolean valid = desc.startsWith(Internal.ANN_PREFIX) || validateAnnotation(desc, values, unkMembers);
         int rowColor = valid ? (desc.contains("bytebuddy") ? BB_ANN_COLOR : ANN_COLOR) : RED;
 
         if (!values.isEmpty()) {

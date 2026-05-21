@@ -1,8 +1,8 @@
 package me.zed_0xff.zombie_buddy.transformers.bytebuddy;
 
+import me.zed_0xff.zombie_buddy.annotations.Internal;
+import me.zed_0xff.zombie_buddy.annotations.Internal.Meta;
 import me.zed_0xff.zombie_buddy.annotations.Patch;
-import me.zed_0xff.zombie_buddy.annotations.Patch.Internal.Meta;
-
 import net.bytebuddy.description.annotation.AnnotationDescription;
 import net.bytebuddy.description.annotation.AnnotationSource;
 import net.bytebuddy.description.method.MethodDescription;
@@ -15,11 +15,11 @@ public abstract class AbstractPatchAnnotationTransformerV2 extends AbstractTrans
         return desc != null && desc.startsWith("Lme/zed_0xff/zombie_buddy/");
     }
 
-    /** @return loaded {@link Patch.Internal.Flags} on {@code method}, or {@code null} if absent */
-    protected static Patch.Internal.Flags getMethodFlags(MethodDescription method) {
-        AnnotationDescription.Loadable<Patch.Internal.Flags> ld = method
+    /** @return loaded {@link Internal.Flags} on {@code method}, or {@code null} if absent */
+    protected static Internal.Flags getMethodFlags(MethodDescription method) {
+        AnnotationDescription.Loadable<Internal.Flags> ld = method
             .getDeclaredAnnotations()
-            .ofType(Patch.Internal.Flags.class);
+            .ofType(Internal.Flags.class);
             
         return ld == null ? null : ld.load();
     }
@@ -33,7 +33,7 @@ public abstract class AbstractPatchAnnotationTransformerV2 extends AbstractTrans
         boolean patchAdvice = patch.isAdvice();
         for (AnnotationDescription zb : src.getDeclaredAnnotations().filter(a -> isZBdesc(a.getAnnotationType().getDescriptor()))) {
             for (AnnotationDescription metaAnn : zb.getAnnotationType().getDeclaredAnnotations().filter(ann -> ann.getAnnotationType().represents(Meta.class))) {
-                Patch.Internal.Meta meta = metaAnn.prepare(Meta.class).load();
+                Internal.Meta meta = metaAnn.prepare(Meta.class).load();
                 if (meta.isAdvice() == patchAdvice) {
                     return new MetaInfo(meta, zb);
                 }

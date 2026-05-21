@@ -14,10 +14,10 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
 import me.zed_0xff.zombie_buddy.Logger;
-import me.zed_0xff.zombie_buddy.annotations.Patch;
-import me.zed_0xff.zombie_buddy.annotations.Patch.Internal.Flags;
-import me.zed_0xff.zombie_buddy.annotations.Patch.Internal.MapBool;
 import me.zed_0xff.zombie_buddy.Utils;
+import me.zed_0xff.zombie_buddy.annotations.Internal;
+import me.zed_0xff.zombie_buddy.annotations.Internal.Flags;
+import me.zed_0xff.zombie_buddy.annotations.Internal.MapBool;
 import me.zed_0xff.zombie_buddy.transformers.AnnCache;
 import net.bytebuddy.description.type.TypeDescription;
 
@@ -85,7 +85,7 @@ public class Resolver extends AbstractTransformer {
         boolean changed = false;
 
         for (AnnotationNode ann : list) {
-            if (ann.desc.startsWith(Patch.Internal.ANN_PREFIX)) continue;
+            if (ann.desc.startsWith(Internal.ANN_PREFIX)) continue;
 
             AnnotationNode zbAnn = zbByTarget.get(ann.desc);
             if (zbAnn == null) continue;
@@ -105,7 +105,7 @@ public class Resolver extends AbstractTransformer {
     private static Map<String, AnnotationNode> zbAnnByTargetDesc(List<AnnotationNode> list, boolean isAdvice) {
         Map<String, AnnotationNode> zbByTarget = new HashMap<>();
         for (AnnotationNode ann : list) {
-            if (!ann.desc.startsWith(Patch.Internal.ANN_PREFIX)) continue;
+            if (!ann.desc.startsWith(Internal.ANN_PREFIX)) continue;
 
             var meta = AnnCache.getMeta(ann.desc, isAdvice);
             if (meta == null || meta.targetAnnotation() == void.class) continue;
@@ -167,7 +167,7 @@ public class Resolver extends AbstractTransformer {
             return Type.getType(mapBool.onTrue());
 
         Class<?> onFalse = mapBool.onFalse();
-        return onFalse == Patch.Internal.DropAnnParam.class ? Type.VOID_TYPE : Type.getType(onFalse);
+        return onFalse == Internal.DropAnnParam.class ? Type.VOID_TYPE : Type.getType(onFalse);
     }
 
     private boolean processFlags(AnnotationNode bbAnn, AnnotationNode zbAnn, String elemName, Flags flags, String paramName) {
