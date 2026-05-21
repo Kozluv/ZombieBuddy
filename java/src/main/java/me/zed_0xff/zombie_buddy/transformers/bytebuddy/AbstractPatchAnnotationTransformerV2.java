@@ -8,7 +8,7 @@ import net.bytebuddy.description.annotation.AnnotationSource;
 import net.bytebuddy.description.method.MethodDescription;
 
 /*
- * base class for transformers that rewrite patch annotations (e.g. AlternativeResolver, AnnotationConverter)
+ * base class for transformers that rewrite patch annotations (e.g. AlternativeResolver, Converter)
  */
 public abstract class AbstractPatchAnnotationTransformerV2 extends AbstractTransformer {
     static boolean isZBdesc(String desc) {

@@ -26,10 +26,16 @@ import net.bytebuddy.description.type.TypeDescription;
  * Pairs ZombieBuddy {@code @Patch.*} with same-list ByteBuddy targets when present; otherwise applies in-place on the ZombieBuddy node.
  */
 public class Resolver extends AbstractTransformer {
+    private boolean m_isAdvice = true;
+
     @Override
     protected boolean transformNode(ClassNode cn) {
-        // Logger.debug("Resolver.transformNode", cn.name, m_ctx.getPatch());
-        if (m_ctx.getPatch() == null) return false;
+        // Logger.debug("Resolver.transformNode", cn, m_ctx.getTarget());
+        if (m_ctx.getTarget() == null) return false;
+
+        var patch = m_ctx.getPatch();
+        if (patch != null)
+            m_isAdvice = patch.isAdvice();
 
         boolean changed = false;
         for (MethodNode mn : cn.methods) {
@@ -41,7 +47,7 @@ public class Resolver extends AbstractTransformer {
     }
 
     private boolean resolveMethodAnns(MethodNode mn) {
-        return applyZbPairing(mn.visibleAnnotations, m_ctx.getPatch().isAdvice(), Resolver::applyMapBoolFromZbAnn);
+        return applyZbPairing(mn.visibleAnnotations, m_isAdvice, Resolver::applyMapBoolFromZbAnn);
     }
 
     private boolean resolveMethodParams(MethodNode mn) {
@@ -67,8 +73,7 @@ public class Resolver extends AbstractTransformer {
         List<AnnotationNode> plist = lists[pidx];
         if (Utils.isBlank(plist)) return false;
 
-        boolean isAdvice = m_ctx.getPatch().isAdvice();
-        return applyZbPairing(plist, isAdvice, (bb, zb) -> resolveParamAnn(paramName, bb, zb));
+        return applyZbPairing(plist, m_isAdvice, (bb, zb) -> resolveParamAnn(paramName, bb, zb));
     }
 
     /**
@@ -188,9 +193,9 @@ public class Resolver extends AbstractTransformer {
                 break;
             }
 
-            TypeDescription td = m_ctx.getPatchTarget();
+            TypeDescription td = m_ctx.getTarget();
             if (td == null) {
-                Logger.once.warn("cannot find patch target class", m_ctx.getPatch().className());
+                Logger.once.warn("cannot find patch target class for", m_ctx.className());
                 break;
             }
             var fields = td.getDeclaredFields();

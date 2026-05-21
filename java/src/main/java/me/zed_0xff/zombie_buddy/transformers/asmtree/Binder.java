@@ -55,7 +55,7 @@ public class Binder extends AbstractTransformer {
         var adapterAnn = adapterTd.getDeclaredAnnotations().ofType(Shadow.class);
         if (adapterAnn == null) return false;
 
-        String targetBin = adapterAnn.load().value();
+        String targetBin = adapterAnn.load().className();
         TypeDescription td = m_ctx.jarContext().getOrigTypeDesc(targetBin);
         if (td == null) {
             Logger.once.warn("Binder: unresolved adapter target", targetBin);

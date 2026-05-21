@@ -10,7 +10,7 @@ import java.util.function.BiFunction;
 import net.bytebuddy.jar.asm.*;
 
 /*
- * base class for transformers that need access to parameter _names_ when processing annotations (e.g. AnnotationConverter)
+ * base class for transformers that need access to parameter _names_ when processing annotations (e.g. Converter)
  */
 public abstract class AbstractParamAwareTransformer extends AbstractTransformer {
     /** Set for the duration of {@link #createVisitor}; used by subclasses (e.g. annotation translation) to share one scope stack with {@link TrackingClassVisitor}. */

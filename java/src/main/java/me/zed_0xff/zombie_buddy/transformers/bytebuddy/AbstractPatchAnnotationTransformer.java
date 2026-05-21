@@ -11,7 +11,7 @@ import net.bytebuddy.jar.asm.AnnotationVisitor;
 import net.bytebuddy.jar.asm.Type;
 
 /*
- * base class for transformers that rewrite patch annotations (e.g. AlternativeResolver, AnnotationConverter)
+ * base class for transformers that rewrite patch annotations (e.g. AlternativeResolver, Converter)
  */
 public abstract class AbstractPatchAnnotationTransformer extends AbstractParamAwareTransformer {
     protected static final Map<String, AnnInfo> PATCH_ANN_MAP = new HashMap<>();

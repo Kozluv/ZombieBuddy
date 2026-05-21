@@ -3,7 +3,10 @@ package me.zed_0xff.zombie_buddy.transformers;
 import java.util.Map;
 
 import me.zed_0xff.zombie_buddy.annotations.Internal;
+import me.zed_0xff.zombie_buddy.annotations.Internal.MetaRoot;
 import me.zed_0xff.zombie_buddy.annotations.Patch;
+import net.bytebuddy.description.annotation.AnnotationDescription;
+import net.bytebuddy.description.annotation.AnnotationList;
 import net.bytebuddy.description.type.TypeDescription;
 
 /** Per-class view into a shared {@link JarContext}. Prefer one instance per {@code className} while mutating that jar slice; cached {@link #getCurrentTypeDesc()} can drift if the same name is updated through another {@code ClassContext} sharing {@code jctx}. */
@@ -19,6 +22,7 @@ public class ClassContext {
     private boolean               m_changed;
     private TypeDescription       m_typeDesc;
     private Patch                 m_patch = null; // lazily initialized by getPatch()
+    private String                m_rootClassName = null; // same
 
     /**
      * @param className JVM binary name ({@link Class#getName()})
@@ -77,8 +81,57 @@ public class ClassContext {
         return null;
     }
 
+    private static boolean isMetaRoot(TypeDescription annotationType) {
+        AnnotationList meta = annotationType.getDeclaredAnnotations();
+        for (int i = 0; i < meta.size(); i++) {
+            if (meta.get(i).getAnnotationType().represents(MetaRoot.class)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    //         @Patch(className = "zombie.core.skinnedmodel.model.VertexBufferObject", methodName = "setModelViewProjection")
+    // root -> class me.zed_0xff.zb_better_fps.Patch_VertexBufferObject_B42
+
+    //         @Shadow(className = "zombie.core.opengl.ShaderProgram")
+    // root -> class me.zed_0xff.zb_better_fps.Patch_VertexBufferObject_B42$ShaderProgramAdapter
+
+    protected TypeDescription getRoot() {
+        TypeDescription td = getOriginalTypeDesc();
+
+        while (td != null) {
+            AnnotationList anns = td.getDeclaredAnnotations();
+            for (int i = 0; i < anns.size(); i++) {
+                AnnotationDescription a = anns.get(i);
+                if (isMetaRoot(a.getAnnotationType())) {
+                    return td;
+                }
+            }
+            td = td.getEnclosingType();
+        }
+        return null;
+    }
+
+    protected String getRootClassName() {
+        if (m_rootClassName != null) return m_rootClassName;
+
+        TypeDescription td = getRoot();
+        if (td == null) return null;
+
+        for (AnnotationDescription a : td.getDeclaredAnnotations()) {
+            if (!isMetaRoot(a.getAnnotationType())) continue;
+
+            m_rootClassName = a.getValue("className").resolve(String.class);
+            if (m_rootClassName != null) break;
+        }
+        return m_rootClassName;
+    }
+
     /** intentionally lookup original type desc only */
-    public TypeDescription getPatchTarget() {
-        return m_jctx.getOrigTypeDesc(getPatch().className());
+    public TypeDescription getTarget() {
+        String className = getRootClassName();
+        return className == null ? null : m_jctx.getOrigTypeDesc(className);
     }
 }

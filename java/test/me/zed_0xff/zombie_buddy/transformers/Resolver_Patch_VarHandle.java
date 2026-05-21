@@ -12,15 +12,15 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import me.zed_0xff.zombie_buddy.annotations.Patch;
-import me.zed_0xff.zombie_buddy.transformers.asmtree.AnnotationConverter;
+import me.zed_0xff.zombie_buddy.transformers.asmtree.Converter;
 import me.zed_0xff.zombie_buddy.transformers.asmtree.Resolver;
 import net.bytebuddy.asm.Advice;
 
 class Resolver_Patch_VarHandle extends AbstractTest {
     protected static Stream<Arguments> provideClasses() {
         List<Class<?>[]> converters = List.of(
-            new Class<?>[]{ AnnotationConverter.class, Resolver.class },
-            new Class<?>[]{ Resolver.class, AnnotationConverter.class }
+            new Class<?>[]{ Converter.class, Resolver.class },
+            new Class<?>[]{ Resolver.class, Converter.class }
         );
 
         List<Object[]> objects = List.of(

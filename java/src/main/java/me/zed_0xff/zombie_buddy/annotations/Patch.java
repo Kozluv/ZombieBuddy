@@ -9,6 +9,7 @@ import net.bytebuddy.asm.Advice;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
+@Internal.MetaRoot
 public @interface Patch {
     public static final String NAMEMAP_LOCAL_NAME = "zb.nameMap";
 
@@ -27,7 +28,7 @@ public @interface Patch {
     @Internal.Meta(targetAnnotation = Advice.OnMethodEnter.class)
     public @interface OnEnter {
         @Internal.MapBool(onTrue = Advice.OnNonDefaultValue.class)
-        boolean skipOn() default false;  // converted by AnnotationConverter.java
+        boolean skipOn() default false;  // converted by Converter.java
     }
 
     /** Alias for net.bytebuddy.asm.Advice.OnMethodExit - mods should use Patch.OnExit instead */

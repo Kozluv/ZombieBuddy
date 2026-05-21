@@ -10,7 +10,7 @@ import net.bytebuddy.jar.asm.Type;
 /*
  * converts ZombieBuddy annotations to ByteBuddy's, driven by @Internal.Meta metadata
  */
-public class AnnotationConverter extends AbstractPatchAnnotationTransformer {
+public class Converter extends AbstractPatchAnnotationTransformer {
     boolean bKeepOriginalAnnotations = true;
 
     /** Forwards every callback to two delegates so ASM element parsing fills both annotations (keep-original + dst). */

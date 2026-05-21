@@ -346,14 +346,13 @@ final class PatchTransformer {
                             if (opcode == Opcodes.ALOAD) {
                                 String annPrefix = Internal.ANN_PREFIX;
                                 if (annPrefix.startsWith("L")) annPrefix = annPrefix.substring(1);
-                                if (!annPrefix.endsWith("$"))  annPrefix = annPrefix + "$";
                                 // annPrefix = "me/zed_0xff/zombie_buddy/annotations/Patch$"
 
                                 String storeKey = allHandleSlots.get(var);
                                 if (storeKey != null) {
                                     boolean isVar = paramHandleInfos.get(storeKey) instanceof IVarHandle;
                                     mv.visitLdcInsn(storeKey);
-                                    mv.visitMethodInsn(Opcodes.INVOKESTATIC, annPrefix + "HandleStore",
+                                    mv.visitMethodInsn(Opcodes.INVOKESTATIC, annPrefix + "Internal$HandleStore",
                                         isVar ? "getVar" : "getMethod",
                                         isVar ? "(Ljava/lang/String;)Ljava/lang/invoke/VarHandle;" : "(Ljava/lang/String;)Ljava/lang/invoke/MethodHandle;",
                                         false);
@@ -362,7 +361,7 @@ final class PatchTransformer {
                                 storeKey = nameMapSlots.get(var);
                                 if (storeKey != null) {
                                     mv.visitLdcInsn(storeKey);
-                                    mv.visitMethodInsn(Opcodes.INVOKESTATIC, annPrefix + "NameStore", // FIXME + TESTME
+                                    mv.visitMethodInsn(Opcodes.INVOKESTATIC, annPrefix + "Internal$NameStore", // FIXME + TESTME
                                         "get", "(Ljava/lang/String;)Ljava/util/Map;", false);
                                     return;
                                 }

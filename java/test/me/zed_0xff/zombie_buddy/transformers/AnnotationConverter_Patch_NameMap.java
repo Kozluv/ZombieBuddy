@@ -12,11 +12,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 import me.zed_0xff.zombie_buddy.annotations.Patch;
 import net.bytebuddy.asm.Advice;
 
-class AnnotationConverter_Patch_NameMap_Test extends AbstractTest {
+class Converter_Patch_NameMap_Test extends AbstractTest {
     protected static Stream<Arguments> provideClasses() {
         return Stream.of(
-                Arguments.of(me.zed_0xff.zombie_buddy.transformers.asmtree.AnnotationConverter.class)
-                // Arguments.of(me.zed_0xff.zombie_buddy.transformers.bytebuddy.AnnotationConverter.class)
+                Arguments.of(me.zed_0xff.zombie_buddy.transformers.asmtree.Converter.class)
+                // Arguments.of(me.zed_0xff.zombie_buddy.transformers.bytebuddy.Converter.class)
                 );
     }
 

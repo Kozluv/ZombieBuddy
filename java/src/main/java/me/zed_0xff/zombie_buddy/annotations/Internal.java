@@ -9,9 +9,14 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class Internal {
-    public static final String ANN_PREFIX = "Lme/zed_0xff/zombie_buddy/annotations/Patch$";
+    public static final String ANN_PREFIX = "Lme/zed_0xff/zombie_buddy/annotations/";
 
     private Internal() {}
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface MetaRoot {
+    }
 
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.TYPE)
@@ -23,11 +28,12 @@ public final class Internal {
     @Target(ElementType.TYPE)
     @Repeatable(Metas.class)
     public @interface Meta {
-        Class<?> targetAnnotation();
+        Class<?> targetAnnotation() default void.class;
         String[] targetParamNames() default {};
         String[] targetParamValues() default {};
         boolean isAdvice() default true;      // false => MethodDelegation
         Class<?>[] requireType() default {};
+        boolean isRoot() default false;
     }
 
     public static final class DropAnnParam {} // drop annotation parameter

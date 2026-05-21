@@ -22,7 +22,7 @@ import me.zed_0xff.zombie_buddy.transformers.AnnCache.AnnInfo;
  * (same visibility list; element values shallow-copied, optional {@link Internal.Meta#targetParamNames()} rename).
  * ZombieBuddy annotations are left in place.
  */
-public class AnnotationConverter extends AbstractTransformer {
+public class Converter extends AbstractTransformer {
     private boolean m_isAdvice;
 
     @Override

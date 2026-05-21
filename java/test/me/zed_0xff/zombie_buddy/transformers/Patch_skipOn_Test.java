@@ -2,6 +2,7 @@ package me.zed_0xff.zombie_buddy.transformers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -10,16 +11,16 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import me.zed_0xff.zombie_buddy.annotations.Patch;
-import me.zed_0xff.zombie_buddy.transformers.asmtree.AnnotationConverter;
+import me.zed_0xff.zombie_buddy.transformers.asmtree.Converter;
 import me.zed_0xff.zombie_buddy.transformers.asmtree.Resolver;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 
-class Resolver_Patch_skipOn extends AbstractTest {
+class Patch_skipOn_Test extends AbstractTest {
     protected static Stream<Arguments> provideClasses() {
-        List<Class<?>[]> converters = List.of(
-            new Class<?>[]{ AnnotationConverter.class, Resolver.class },
-            new Class<?>[]{ Resolver.class, AnnotationConverter.class }
+        List<List<Class<? extends Transformer>>> converters = List.of(
+            List.of(Converter.class, Resolver.class),
+            List.of(Resolver.class, Converter.class)
         );
 
         List<Class<?>[]> patches = List.of(
@@ -31,26 +32,31 @@ class Resolver_Patch_skipOn extends AbstractTest {
         return converters.stream().flatMap(c ->
             patches.stream().map(p ->
                 Arguments.of(
-                    c[0], c[1],
+                    c,
                     p[0], p[1]
                 )
             )
         );
     }
 
-    @Patch(className = "me.zed_0xff.TestClass", methodName = "getFoo")
+    private static class Target {
+    }
+
+    private static final String TARGET = "me.zed_0xff.zombie_buddy.transformers.Patch_skipOn_Test$Target";
+
+    @Patch(className = TARGET, methodName = "getFoo")
     static class Patch1 {
         @Patch.OnEnter
         static void m1() {}
     }
 
-    @Patch(className = "me.zed_0xff.TestClass", methodName = "getFoo")
+    @Patch(className = TARGET, methodName = "getFoo")
     static class Patch2 {
         @Patch.OnEnter(skipOn = true)
         static boolean m1() { return true; }
     }
 
-    @Patch(className = "me.zed_0xff.TestClass", methodName = "getFoo")
+    @Patch(className = TARGET, methodName = "getFoo")
     static class Patch3 {
         @Patch.OnEnter(skipOn = false)
         static boolean m1() { return true; }
@@ -59,11 +65,11 @@ class Resolver_Patch_skipOn extends AbstractTest {
     @ParameterizedTest
     @MethodSource("provideClasses")
     void test_OnEnter(
-            Class<? extends Transformer> converterCls,
-            Class<? extends Transformer> resolverCls,
+            List<Class<? extends Transformer>> transformers,
             Class<?> patchCls,
             Class<?> resultCls
     ) throws Exception {
+        ArrayList<String> dumps = new ArrayList<>();
         var ctx = new TestClassContext(patchCls);
         byte[] bytes = ctx.getBytes();
 
@@ -71,19 +77,26 @@ class Resolver_Patch_skipOn extends AbstractTest {
         assertThat(m.getDeclaredAnnotations())
             .hasSize(1);
 
-        Transformer t1 = converterCls.getDeclaredConstructor().newInstance();
-        var res1 = t1.transform(bytes, ctx);
-        if (res1.modified()) bytes = res1.bytes();
+        for (Class<? extends Transformer> transformerCls : transformers) {
+            Transformer transformer = transformerCls.getDeclaredConstructor().newInstance();
+            var result = transformer.transform(bytes, ctx);
+            if (result.modified()) {
+                bytes = result.bytes();
+                dumps.add(ctx.dumpClass(bytes));
+            }
+        }
 
-        Transformer t2 = resolverCls.getDeclaredConstructor().newInstance();
-        var res2 = t2.transform(bytes, ctx);
+        try {
+            m = ctx.getMethod("m1");
+            assertThat(m.getDeclaredAnnotations())
+                .hasSize(2);
 
-        m = ctx.getMethod("m1");
-        assertThat(m.getDeclaredAnnotations())
-            .hasSize(2);
-
-        var a = m.getDeclaredAnnotations().filter(x -> x.getAnnotationType().isAssignableTo(Advice.OnMethodEnter.class)).getOnly();
-        assertThat(a.getValue("skipOn").resolve())
-            .isEqualTo(TypeDescription.ForLoadedType.of(resultCls));
+            var a = m.getDeclaredAnnotations().filter(x -> x.getAnnotationType().isAssignableTo(Advice.OnMethodEnter.class)).getOnly();
+            assertThat(a.getValue("skipOn").resolve())
+                .isEqualTo(TypeDescription.ForLoadedType.of(resultCls));
+        } catch (Throwable t) {
+            dumps.forEach(d -> { System.out.println(d); });
+            throw t;
+        }
     }
 }

@@ -74,7 +74,7 @@ public class Resolver extends AbstractPatchAnnotationTransformerV2 {
         public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
             AnnotationVisitor av = super.visitAnnotation(desc, visible);
             if (av != null && !isZBdesc(desc)) {
-                // Logger.debug("m-ann", tracker.path(), m_ctx.getPatchTarget(), desc);
+                // Logger.debug("m-ann", tracker.path(), m_ctx.getTarget(), desc);
                 // av = new AnnVisitor(ASM_API, av, tracker);
             }
 

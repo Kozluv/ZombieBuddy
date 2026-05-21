@@ -99,13 +99,13 @@ public class Main extends CLIUtil {
     }
 
     private static final TransSpec[] TRANS_SPECS = {
-        new TransSpec("compat",   "ZB2Compat",           "Convert ZB 2.x @Patch annotations", TransOpt.DEFAULT),
-        new TransSpec("resolve",  "Resolver",            "Resolve alternative names in annotations", TransOpt.DEFAULT),
-        new TransSpec("convert",  "AnnotationConverter", "Convert ZombieBuddy annotations to ByteBuddy annotations", TransOpt.DEFAULT),
-        new TransSpec("bind",     "Binder",              "Bind @Shadow classes", TransOpt.DEFAULT),
-        new TransSpec("pub-all",  "Publicizer",          "Publicize all members unconditionally"),
-        new TransSpec("pub-cond", "Publicizer",          "Publicize if any annotations were converted by the previous steps", TransOpt.CONDITIONAL, TransOpt.DEFAULT),
-        new TransSpec("none",     "NoopTransformer",     "Do nothing (for testing/debugging purposes)"),
+        new TransSpec("compat",   "ZB2Compat",       "Convert ZB 2.x @Patch annotations", TransOpt.DEFAULT),
+        new TransSpec("resolve",  "Resolver",        "Resolve alternative names in annotations", TransOpt.DEFAULT),
+        new TransSpec("convert",  "Converter",       "Convert ZombieBuddy annotations to ByteBuddy annotations", TransOpt.DEFAULT),
+        new TransSpec("bind",     "Binder",          "Bind @Shadow classes", TransOpt.DEFAULT),
+        new TransSpec("pub-all",  "Publicizer",      "Publicize all members unconditionally"),
+        new TransSpec("pub-cond", "Publicizer",      "Publicize if any annotations were converted by the previous steps", TransOpt.CONDITIONAL, TransOpt.DEFAULT),
+        new TransSpec("none",     "NoopTransformer", "Do nothing (for testing/debugging purposes)"),
     };
 
     private static Supplier<Transformer> conditional(Supplier<? extends Transformer> factory) {
@@ -228,6 +228,10 @@ public class Main extends CLIUtil {
                     for (String key : args[++i].split(",")) {
                         if ( TRANS_MAP.containsKey(key) ) {
                             _transformers.add(key);
+                        } else if ( TRANS_MAP.containsKey("at." + key) ) {
+                            _transformers.add("at." + key);
+                        } else if ( TRANS_MAP.containsKey("bb." + key) ) {
+                            _transformers.add("bb." + key);
                         } else {
                             System.err.println("Unknown transformer: " + key);
                             System.exit(1);

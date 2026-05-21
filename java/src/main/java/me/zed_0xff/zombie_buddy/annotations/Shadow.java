@@ -7,8 +7,9 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.PARAMETER, ElementType.TYPE})
+@Internal.MetaRoot
 public @interface Shadow {
-    String value();
+    String className();
 
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
@@ -18,7 +19,6 @@ public @interface Shadow {
         @Internal.Flags(targetElement = "value")
         String[] name() default {};                  // alias for value()
         Class<?> declaringType() default void.class; // the class that declares the field; void.class = infer from target class
-        boolean readOnly() default true;
         boolean optional() default false;
     }
 
