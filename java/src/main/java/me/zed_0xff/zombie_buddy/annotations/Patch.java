@@ -1,17 +1,26 @@
 package me.zed_0xff.zombie_buddy.annotations;
 
+import static me.zed_0xff.zombie_buddy.annotations.Internal.ZB_PREFIX;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AnnotationNode;
+import org.objectweb.asm.tree.ParameterNode;
+
+import me.zed_0xff.zombie_buddy.Logger;
+import me.zed_0xff.zombie_buddy.Utils;
+import me.zed_0xff.zombie_buddy.annotations.Internal.AnnElements;
 import net.bytebuddy.asm.Advice;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @Internal.MetaRoot
 public @interface Patch {
-    public static final String NAMEMAP_LOCAL_NAME = "zb.nameMap";
+    public static final String NAMEMAP_LOCAL_NAME = ZB_PREFIX + "nameMap";
 
     String className();
     String methodName();
@@ -25,10 +34,21 @@ public @interface Patch {
     /** Alias for net.bytebuddy.asm.Advice.OnMethodEnter - mods should use Patch.OnEnter instead */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.METHOD)
-    @Internal.Meta(targetAnnotation = Advice.OnMethodEnter.class)
+    @Internal.Meta
     public @interface OnEnter {
-        @Internal.MapBool(onTrue = Advice.OnNonDefaultValue.class)
-        boolean skipOn() default false;  // converted by Converter.java
+        boolean skipOn() default false;
+
+        public class Converter extends Internal.AnnConverterBase {
+            public AnnotationNode convert(AnnotationNode src, Object o) {
+                var els = AnnElements.fromValues(src.values);
+                return createNode(
+                        Advice.OnMethodEnter.class,
+                        Boolean.TRUE.equals(els.getBoolean("skipOn"))
+                            ? new Object[] { "skipOn", Type.getType(Advice.OnNonDefaultValue.class) }
+                            : null
+                );
+            }
+        }
     }
 
     /** Alias for net.bytebuddy.asm.Advice.OnMethodExit - mods should use Patch.OnExit instead */
@@ -41,7 +61,11 @@ public @interface Patch {
     }
 
     public abstract static class NoException extends Throwable {}
+
+    @Deprecated(forRemoval = true)
     public abstract static class OnDefaultValue extends Throwable {}
+
+    @Deprecated(forRemoval = true)
     public abstract static class OnNonDefaultValue extends Throwable {}
 
     /** Binds the return value of the target method. {@code @Patch.OnExit} only. Use {@code readOnly = false} to overwrite it. */
@@ -143,13 +167,34 @@ public @interface Patch {
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.PARAMETER)
-    @Internal.Meta(targetAnnotation = Advice.FieldValue.class)
+    @Internal.Meta
     public @interface Field {
         @Internal.Flags(inferFromTargetName = true, probeField = true)
         String[] value() default {};                 // field name(s): empty = infer from parameter name; multiple = try in order
         Class<?> declaringType() default void.class; // the class that declares the field; void.class = infer from target class
         boolean readOnly() default true;
         boolean optional() default false;
+
+        public class Converter extends Internal.AnnConverterBase {
+            public AnnotationNode convert(AnnotationNode src, Object o) {
+                if (!(o instanceof ParameterNode node))
+                    throw new IllegalArgumentException("Expected ParameterNode, got " + o.getClass().getName());
+                
+                var els = AnnElements.fromValues(src.values);
+                var names = els.getListStr("value");
+                String name = null;
+                if (Utils.isBlank(names)) {
+                    name = node.name; // fallback to parameter name if 'name' element is missing or empty
+                } else if (names.size() == 1) {
+                    name = names.get(0);
+                } else {
+                    Logger.warn("Invalid @Patch.Field annotation: exactly one field name must be specified in 'name' element", src, names);
+                    return null;
+                }
+                els.put("value", name);
+                return createNode( Advice.FieldValue.class, els );
+            }
+        }
     }
 
     /**
@@ -180,23 +225,6 @@ public @interface Patch {
     // https://javadoc.io/doc/net.bytebuddy/byte-buddy/1.18.8/net/bytebuddy/asm/Advice.Handle.html            - returns only MethodHandle, no VarHandle support
     // https://javadoc.io/doc/net.bytebuddy/byte-buddy/1.18.8/net/bytebuddy/asm/Advice.FieldGetterHandle.html - respects field visibility
     // https://javadoc.io/doc/net.bytebuddy/byte-buddy/1.18.8/net/bytebuddy/asm/Advice.FieldSetterHandle.html - --//--
-    // @Deprecated(forRemoval = true) // use @Patch.MethodHandle and @Patch.VarHandle instead, which support both methods and fields in a single annotation
-    // @Retention(RetentionPolicy.RUNTIME)
-    // @Target({ElementType.FIELD, ElementType.PARAMETER})
-    // public @interface MemberHandle {
-    //     String[] value() default {};              // empty = infer from stub field name; multiple = try in order
-    //     String[] name() default {};               // alias for value(); specifying both is a compile error
-    //     String className() default "";            // empty = infer from enclosing @Patch.className(); mutually exclusive with owner()
-    //     Class<?> owner() default void.class;      // type-safe alternative to className(); mutually exclusive with className()
-    //     boolean optional() default false;         // false = drop patch class on missing field; true = leave field as null
-    //
-    //     // MethodHandle:
-    //     Class<?> returnType() default void.class;
-    //     Class<?>[] parameterTypes() default {};
-    //
-    //     // VarHandle:
-    //     Class<?> type() default void.class;
-    // }
 
     @Retention(RetentionPolicy.RUNTIME)
     @Target({ElementType.FIELD, ElementType.PARAMETER})
@@ -214,14 +242,36 @@ public @interface Patch {
 
     @Retention(RetentionPolicy.RUNTIME)
     @Target({ElementType.FIELD, ElementType.PARAMETER})
-    @Internal.Meta(targetAnnotation = Advice.Local.class, requireType = java.lang.invoke.VarHandle.class)
+    @Internal.Meta(requireType = java.lang.invoke.VarHandle.class)
     public @interface VarHandle {
-        @Internal.Flags(targetElement = "value", inferFromTargetName = true, probeField = true)
         String[] name()    default {};            // empty = infer from stub field name; multiple = try in order
         String className() default "";            // empty = infer from enclosing @Patch.className(); mutually exclusive with owner()
-        Class<?> owner()   default void.class;    // type-safe alternative to className(); mutually exclusive with className()
+        Class<?> owner()   default void.class;    // type-alternative to className(); mutually exclusive with className()
         boolean optional() default false;         // false = drop patch class on missing field; true = leave field as null
 
         Class<?> type();
+
+        public class Converter extends Internal.AnnConverterBase {
+            public AnnotationNode convert(AnnotationNode src, Object o) {
+                if (!(o instanceof ParameterNode node))
+                    throw new IllegalArgumentException("Expected ParameterNode, got " + o.getClass().getName());
+                
+                var els = AnnElements.fromValues(src.values);
+                var names = els.getListStr("name");
+                String name = null;
+                if (Utils.isBlank(names)) {
+                    name = node.name; // fallback to parameter name if 'name' element is missing or empty
+                } else if (names.size() == 1) {
+                    name = names.get(0);
+                } else {
+                    Logger.warn("Invalid @Patch.VarHandle annotation: exactly one field name must be specified in 'name' element", src, names);
+                    return null;
+                }
+                return createNode(
+                        Advice.Local.class,
+                        "value", ZB_PREFIX + els.get("type").toString() + "|" + name
+);
+            }
+        }
     }
 }

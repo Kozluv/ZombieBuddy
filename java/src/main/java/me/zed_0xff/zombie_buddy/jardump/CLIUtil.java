@@ -1,22 +1,22 @@
 package me.zed_0xff.zombie_buddy.jardump;
 
-import me.zed_0xff.zombie_buddy.Utils;
-
 import java.util.Map;
 
-class CLIUtil {
-    static final int RESET   = 0;
-    static final int BOLD    = 1;
-    static final int DIM     = 2;
-    static final int RED     = 31;
-    static final int GREEN   = 32;
-    static final int YELLOW  = 33;
-    static final int BLUE    = 34;
-    static final int MAGENTA = 35;
-    static final int CYAN    = 36;
-    static final int WHITE   = 37;
+import me.zed_0xff.zombie_buddy.Utils;
 
-    static final int BRIGHT  = 60; // ADD to base color code for bright variants
+public class CLIUtil {
+    public static final int RESET   = 0;
+    public static final int BOLD    = 1;
+    public static final int DIM     = 2;
+    public static final int RED     = 31;
+    public static final int GREEN   = 32;
+    public static final int YELLOW  = 33;
+    public static final int BLUE    = 34;
+    public static final int MAGENTA = 35;
+    public static final int CYAN    = 36;
+    public static final int WHITE   = 37;
+
+    public static final int BRIGHT  = 60; // ADD to base color code for bright variants
 
     public static final int ANN_COLOR    = MAGENTA;
     public static final int BB_ANN_COLOR = CYAN; // bytebuddy

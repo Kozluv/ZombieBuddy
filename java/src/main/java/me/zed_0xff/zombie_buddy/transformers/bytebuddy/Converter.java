@@ -3,7 +3,6 @@ package me.zed_0xff.zombie_buddy.transformers.bytebuddy;
 import java.util.HashMap;
 import java.util.function.BiFunction;
 
-import me.zed_0xff.zombie_buddy.Utils;
 import net.bytebuddy.jar.asm.AnnotationVisitor;
 import net.bytebuddy.jar.asm.Type;
 
@@ -112,19 +111,10 @@ public class Converter extends AbstractPatchAnnotationTransformer {
             if (m_dst != null) {
                 if (m_annInfo != null && m_paramName != null) {
                     // FIXME: handle isAdvice flag and multiple metas
-                    if (!Utils.isBlank(m_annInfo.metas())) {
-                        var meta = m_annInfo.metas()[0];
-                        // paramNames = ["value"], paramValues = ["zb.nameMap"]
-                        if (!Utils.isBlank(meta.targetParamNames()) && !Utils.isBlank(meta.targetParamValues())) {
-                            for (int i = 0; i < meta.targetParamNames().length && i < meta.targetParamValues().length; i++) {
-                                String pname = meta.targetParamNames()[i];
-                                String pvalue = meta.targetParamValues()[i];
-                                if (!m_params.containsKey(pname)) {
-                                    m_dst.visit(pname, pvalue);
-                                }
-                            }
-                        }
-                    }
+                    // if (!Utils.isBlank(m_annInfo.metas())) {
+                    //     var meta = m_annInfo.metas()[0];
+                    //     // paramNames = ["value"], paramValues = ["zb.nameMap"]
+                    // }
 
                     // FIXME: handle isAdvice flag and multiple metas
                     // for (var entry : m_annInfo.mapFlags().entrySet()) {

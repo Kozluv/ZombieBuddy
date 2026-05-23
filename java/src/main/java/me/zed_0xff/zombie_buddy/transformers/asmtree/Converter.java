@@ -3,15 +3,20 @@ package me.zed_0xff.zombie_buddy.transformers.asmtree;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.ParameterNode;
 
+import me.zed_0xff.zombie_buddy.Logger;
+import me.zed_0xff.zombie_buddy.Reflect;
 import me.zed_0xff.zombie_buddy.Utils;
 import me.zed_0xff.zombie_buddy.annotations.Internal;
+import me.zed_0xff.zombie_buddy.annotations.Internal.AnnConverter;
 import me.zed_0xff.zombie_buddy.annotations.Internal.Meta;
 import me.zed_0xff.zombie_buddy.annotations.Patch;
 import me.zed_0xff.zombie_buddy.transformers.AnnCache;
@@ -19,7 +24,7 @@ import me.zed_0xff.zombie_buddy.transformers.AnnCache.AnnInfo;
 
 /**
  * For each {@code @Patch.*} annotation that declares {@link Internal.Meta}, appends the matching target annotation
- * (same visibility list; element values shallow-copied, optional {@link Internal.Meta#targetParamNames()} rename).
+ * (same visibility list; element values shallow-copied)
  * ZombieBuddy annotations are left in place.
  */
 public class Converter extends AbstractTransformer {
@@ -32,32 +37,52 @@ public class Converter extends AbstractTransformer {
 
         m_isAdvice = patch.isAdvice();
 
-        boolean changed = convertAnns(cn.visibleAnnotations);
+        boolean changed = convertAnns(cn, cn.visibleAnnotations);
 
         for (FieldNode fn : cn.fields) {
-            changed |= convertAnns(fn.visibleAnnotations); // |= does not short-circuit
+            changed |= convertAnns(fn, fn.visibleAnnotations); // |= does not short-circuit
         }
 
         for (MethodNode mn : cn.methods) {
-            changed |= convertAnns(mn.visibleAnnotations);
-            changed |= convertParamAnns(mn.visibleParameterAnnotations);
+            changed |= convertAnns(mn, mn.visibleAnnotations);
+            changed |= convertParamAnns(mn);
         }
 
         return changed;
     }
 
-    private boolean convertParamAnns(List<AnnotationNode>[] lists) {
-        if (lists == null) return false;
+    private boolean convertParamAnns(MethodNode mn) {
+        if (Utils.isBlank(mn.visibleParameterAnnotations))
+            return false;
+        if (Utils.isBlank(mn.parameters))
+            return convertParamAnnsNoParameterNodes(mn);
 
         boolean changed = false;
-        for (List<AnnotationNode> plist : lists) {
-            if (plist == null) continue;
-            changed |= convertAnns(plist);
+        for (int i = 0; i < mn.parameters.size(); i++) {
+            List<AnnotationNode> anns = mn.visibleParameterAnnotations[i];
+            if (Utils.isBlank(anns)) continue;
+
+            changed |= convertAnns(mn.parameters.get(i), anns);
         }
         return changed;
     }
 
-    private boolean convertAnns(List<AnnotationNode> list) {
+    private boolean convertParamAnnsNoParameterNodes(MethodNode mn) {
+        // Type[] argTypes = Type.getArgumentTypes(mn.desc);
+        boolean changed = false;
+        for (int i = 0; i < mn.visibleParameterAnnotations.length; i++) {
+            List<AnnotationNode> anns = mn.visibleParameterAnnotations[i];
+            if (Utils.isBlank(anns)) continue;
+
+            ParameterNode pn = new ParameterNode(getArgName(mn, i), 0); // XXX access flags is 0 for now
+            // Logger.debug("pn", pn, anns);
+            changed |= convertAnns(pn, anns);
+        }
+        return changed;
+    }
+
+    private boolean convertAnns(Object node, List<AnnotationNode> list) {
+        // Logger.debug("Converter.convertAnns", node, list);
         if (Utils.isBlank(list)) return false;
 
         List<AnnotationNode> snapshot = List.copyOf(list);
@@ -66,7 +91,7 @@ public class Converter extends AbstractTransformer {
             AnnInfo ai = AnnCache.get(ann.desc);
             if (ai == null) continue;
 
-            var translated = translated(ann, ai);
+            var translated = translated(node, ann, ai);
             if (translated == null) continue;
 
             toAdd.add(translated);
@@ -89,38 +114,38 @@ public class Converter extends AbstractTransformer {
         return value;
     }
 
-    private AnnotationNode translated(AnnotationNode src, AnnInfo ai) {
+    private AnnotationNode translated(Object node, AnnotationNode src, AnnInfo ai) {
+        AnnConverter conv = ai.annConverter();
+        if (conv != null) {
+            try {
+                return conv.convert(src, node);
+            } catch (Throwable t) {
+                Logger.error("Failed to convert annotation " + src.desc + " on node " + node, t);
+                return null;
+            }
+        }
+
         Meta meta = ai.getMeta(m_isAdvice);
         if (meta == null) return null;
 
-        AnnotationNode dst = new AnnotationNode(Type.getDescriptor(meta.targetAnnotation()));
+        Set<String> dstElements = Set.copyOf(
+                Reflect.on(meta.targetAnnotation())
+                .methods(Reflect.PUBLIC, Reflect.DECLARED)
+                .stream()
+                .map(m -> m.getName())
+                .toList()
+        );
 
-        AnnElements els = AnnElements.fromValues(src.values);
-        for (var e : els.entrySet()) {
-            e.setValue(transformValue(e.getValue()));
-        }
-
-        applyTargetParams(els, meta.targetParamNames(), meta.targetParamValues());
-
-        for (var elem : ai.td().getDeclaredMethods().asDefined()) {
-            var elemAnns = elem.getDeclaredAnnotations();
-            var flags_ = elemAnns.ofType(Internal.Flags.class);
-            if (flags_ == null) continue;
-
-            Internal.Flags flags = flags_.load();
-            if (!Utils.isBlank(flags.targetElement()) && els.containsKey(elem.getName())) {
-                els.put(flags.targetElement(), els.remove(elem.getName()));
+        AnnElements srcEls = AnnElements.fromValues(src.values);
+        AnnElements dstEls = new AnnElements();
+        for (var e : srcEls.entrySet()) {
+            if (dstElements.contains(e.getKey())) {
+                dstEls.put(e.getKey(), transformValue(e.getValue()));
             }
         }
-        dst.values = els.toValues();
+
+        AnnotationNode dst = new AnnotationNode(Type.getDescriptor(meta.targetAnnotation()));
+        dst.values = dstEls.toValues();
         return dst;
-    }
-
-    private static void applyTargetParams(AnnElements els, String[] names, String[] values) {
-        if (Utils.isBlank(names) || Utils.isBlank(values)) return;
-
-        for(int i = 0; i < names.length && i < values.length; i++) {
-            els.put(names[i], values[i]);
-        }
     }
 }

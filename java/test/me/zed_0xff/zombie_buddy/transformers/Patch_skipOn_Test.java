@@ -2,7 +2,6 @@ package me.zed_0xff.zombie_buddy.transformers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -11,32 +10,16 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import me.zed_0xff.zombie_buddy.annotations.Patch;
-import me.zed_0xff.zombie_buddy.transformers.asmtree.Converter;
-import me.zed_0xff.zombie_buddy.transformers.asmtree.Resolver;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 
 class Patch_skipOn_Test extends AbstractTest {
     protected static Stream<Arguments> provideClasses() {
-        List<List<Class<? extends Transformer>>> converters = List.of(
-            List.of(Converter.class, Resolver.class),
-            List.of(Resolver.class, Converter.class)
-        );
-
-        List<Class<?>[]> patches = List.of(
-            new Class<?>[]{ Patch1.class, void.class },
-            new Class<?>[]{ Patch2.class, Advice.OnNonDefaultValue.class },
-            new Class<?>[]{ Patch3.class, void.class }
-        );
-
-        return converters.stream().flatMap(c ->
-            patches.stream().map(p ->
-                Arguments.of(
-                    c,
-                    p[0], p[1]
-                )
-            )
-        );
+        return withTransformers(List.of(
+            new Object[]{ Patch1.class, void.class },
+            new Object[]{ Patch2.class, Advice.OnNonDefaultValue.class },
+            new Object[]{ Patch3.class, void.class }
+        ));
     }
 
     private static class Target {
@@ -69,7 +52,6 @@ class Patch_skipOn_Test extends AbstractTest {
             Class<?> patchCls,
             Class<?> resultCls
     ) throws Exception {
-        ArrayList<String> dumps = new ArrayList<>();
         var ctx = new TestClassContext(patchCls);
         byte[] bytes = ctx.getBytes();
 
@@ -77,14 +59,7 @@ class Patch_skipOn_Test extends AbstractTest {
         assertThat(m.getDeclaredAnnotations())
             .hasSize(1);
 
-        for (Class<? extends Transformer> transformerCls : transformers) {
-            Transformer transformer = transformerCls.getDeclaredConstructor().newInstance();
-            var result = transformer.transform(bytes, ctx);
-            if (result.modified()) {
-                bytes = result.bytes();
-                dumps.add(ctx.dumpClass(bytes));
-            }
-        }
+        var run = runTransformers(ctx, bytes, transformers);
 
         try {
             m = ctx.getMethod("m1");
@@ -95,7 +70,7 @@ class Patch_skipOn_Test extends AbstractTest {
             assertThat(a.getValue("skipOn").resolve())
                 .isEqualTo(TypeDescription.ForLoadedType.of(resultCls));
         } catch (Throwable t) {
-            dumps.forEach(d -> { System.out.println(d); });
+            printDumps(run.dumps());
             throw t;
         }
     }

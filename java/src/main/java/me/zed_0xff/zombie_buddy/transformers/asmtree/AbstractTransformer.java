@@ -42,7 +42,7 @@ abstract class AbstractTransformer extends Transformer {
             return mn.parameters.get(pidx).name;
         }
 
-        String cacheKey = mn.name + "|" + mn.desc;
+        String cacheKey = m_ctx.className() + "|" + mn.name + "|" + mn.desc;
         _methodArgNamesCache.computeIfAbsent(cacheKey, k -> getArgNames(mn));
         return _methodArgNamesCache.get(cacheKey).get(pidx);
     }

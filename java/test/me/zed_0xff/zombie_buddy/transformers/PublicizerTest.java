@@ -10,10 +10,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class PublicizerTest extends AbstractTest {
     protected static Stream<Arguments> provideClasses() {
-        return Stream.of(
-                Arguments.of(me.zed_0xff.zombie_buddy.transformers.asmtree.Publicizer.class)
-                // Arguments.of(me.zed_0xff.zombie_buddy.transformers.bytebuddy.Publicizer.class)
-                );
+        return withTransformer(me.zed_0xff.zombie_buddy.transformers.asmtree.Publicizer.class);
     }
 
     static class Target {
@@ -29,15 +26,19 @@ class PublicizerTest extends AbstractTest {
         var ctx = new TestClassContext(Target.class);
         byte[] bytes = ctx.getBytes();
 
-        Transformer transformer = cls.getDeclaredConstructor().newInstance();
-        var result = transformer.transform(bytes, ctx);
-        assertThat(result.modified()).isTrue();
-        assertThat(result.bytes()).isNotNull();
+        var run = runTransformer(ctx, bytes, cls);
+        try {
+            assertTransformed(run);
+            assertThat(run.bytes()).isNotNull();
 
-        assertThat(ctx.getOriginalTypeDesc().getDeclaredFields() ).allMatch(f -> !f.isPublic());
-        assertThat(ctx.getOriginalTypeDesc().getDeclaredMethods()).allMatch(f -> !f.isPublic());
+            assertThat(ctx.getOriginalTypeDesc().getDeclaredFields() ).allMatch(f -> !f.isPublic());
+            assertThat(ctx.getOriginalTypeDesc().getDeclaredMethods()).allMatch(f -> !f.isPublic());
 
-        assertThat(ctx.getCurrentTypeDesc().getDeclaredFields() ).allMatch(f -> f.isPublic());
-        assertThat(ctx.getCurrentTypeDesc().getDeclaredMethods()).allMatch(f -> f.isPublic());
+            assertThat(ctx.getCurrentTypeDesc().getDeclaredFields() ).allMatch(f -> f.isPublic());
+            assertThat(ctx.getCurrentTypeDesc().getDeclaredMethods()).allMatch(f -> f.isPublic());
+        } catch (Throwable t) {
+            printDumps(run.dumps());
+            throw t;
+        }
     }
 }

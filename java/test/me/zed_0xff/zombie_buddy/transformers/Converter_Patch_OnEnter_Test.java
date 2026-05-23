@@ -14,10 +14,7 @@ import net.bytebuddy.description.type.TypeDescription;
 
 class Converter_Patch_OnEnter_Test extends AbstractTest {
     protected static Stream<Arguments> provideClasses() {
-        return Stream.of(
-                Arguments.of(me.zed_0xff.zombie_buddy.transformers.asmtree.Converter.class)
-                // Arguments.of(me.zed_0xff.zombie_buddy.transformers.bytebuddy.Converter.class)
-                );
+        return withTransformer(me.zed_0xff.zombie_buddy.transformers.asmtree.Converter.class);
     }
 
     @Patch(className = "me.zed_0xff.TestClass", methodName = "getFoo")
@@ -36,19 +33,22 @@ class Converter_Patch_OnEnter_Test extends AbstractTest {
         assertThat(m.getDeclaredAnnotations())
             .hasSize(1);
 
-        Transformer transformer = cls.getDeclaredConstructor().newInstance();
-        var result = transformer.transform(bytes, ctx);
+        var run = runTransformer(ctx, bytes, cls);
+        try {
+            assertTransformed(run);
+            assertThat(run.bytes()).isNotNull();
 
-        assertThat(result.modified()).isTrue();
-        assertThat(result.bytes()).isNotNull();
+            m = ctx.getMethod("m1");
+            assertThat(m.getDeclaredAnnotations())
+                .hasSize(2);
 
-        m = ctx.getMethod("m1");
-        assertThat(m.getDeclaredAnnotations())
-            .hasSize(2);
-
-        var a = m.getDeclaredAnnotations().filter(x -> x.getAnnotationType().isAssignableTo(Advice.OnMethodEnter.class)).getOnly();
-        assertThat(a.getValue("skipOn").resolve())
-            .isEqualTo(TypeDescription.ForLoadedType.of(void.class));
+            var a = m.getDeclaredAnnotations().filter(x -> x.getAnnotationType().isAssignableTo(Advice.OnMethodEnter.class)).getOnly();
+            assertThat(a.getValue("skipOn").resolve())
+                .isEqualTo(TypeDescription.ForLoadedType.of(void.class));
+        } catch (Throwable t) {
+            printDumps(run.dumps());
+            throw t;
+        }
     }
 
     // @Patch(className = "me.zed_0xff.TestClass", methodName = "getFoo")

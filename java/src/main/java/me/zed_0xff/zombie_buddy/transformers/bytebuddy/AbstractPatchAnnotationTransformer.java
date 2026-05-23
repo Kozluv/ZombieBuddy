@@ -52,11 +52,11 @@ public abstract class AbstractPatchAnnotationTransformer extends AbstractParamAw
 
     protected record MapBoolInfo(Type onTrue, Type onFalse) {} // null means drop annotation element, i.e. fallback to default
     protected record AnnInfo(
-            String                            descriptor,
+            String                      descriptor,
             Internal.Meta[]             metas,
-            Map<String, MapBoolInfo>          mapBools,
+            Map<String, MapBoolInfo>    mapBools,
             Map<String, Internal.Flags> mapFlags,
-            boolean                           isTarget
+            boolean                     isTarget
     ) {}
 
     // override in subclasses

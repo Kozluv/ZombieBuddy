@@ -2,42 +2,34 @@ package me.zed_0xff.zombie_buddy.transformers.asmtree;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.function.BiPredicate;
 
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.MethodNode;
 
 import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.Utils;
-import me.zed_0xff.zombie_buddy.annotations.Internal;
 import me.zed_0xff.zombie_buddy.annotations.Internal.Flags;
-import me.zed_0xff.zombie_buddy.annotations.Internal.MapBool;
 import me.zed_0xff.zombie_buddy.transformers.AnnCache;
 import net.bytebuddy.description.type.TypeDescription;
 
 /*
- * Rewrites annotations using {@link MapBool} and parameter {@link Flags} (see {@link #resolveMethodParams}).
- * Pairs ZombieBuddy {@code @Patch.*} with same-list ByteBuddy targets when present; otherwise applies in-place on the ZombieBuddy node.
+ * Pre-Converter pass: rewrites ZB annotations in-place using element {@link Flags}. Does not require {@link Internal.Meta}.
  */
 public class Resolver extends AbstractTransformer {
-    private boolean m_isAdvice = true;
-
     @Override
     protected boolean transformNode(ClassNode cn) {
         // Logger.debug("Resolver.transformNode", cn, m_ctx.getTarget());
         if (m_ctx.getTarget() == null) return false;
 
-        var patch = m_ctx.getPatch();
-        if (patch != null)
-            m_isAdvice = patch.isAdvice();
-
         boolean changed = false;
+        for (FieldNode fn : cn.fields) {
+            changed |= resolveFieldAnns(fn);
+        }
+
         for (MethodNode mn : cn.methods) {
             changed |= resolveMethodAnns(mn);
             changed |= resolveMethodParams(mn);
@@ -46,13 +38,16 @@ public class Resolver extends AbstractTransformer {
         return changed;
     }
 
+    private boolean resolveFieldAnns(FieldNode fn) {
+        return resolveAnns(fn.visibleAnnotations, fn.name);
+    }
+
     private boolean resolveMethodAnns(MethodNode mn) {
-        return applyZbPairing(mn.visibleAnnotations, m_isAdvice, Resolver::applyMapBoolFromZbAnn);
+        return resolveAnns(mn.visibleAnnotations, mn.name);
     }
 
     private boolean resolveMethodParams(MethodNode mn) {
         Type[] argTypes = Type.getArgumentTypes(mn.desc);
-        // Logger.debug("resolveMethodParams", mn, argTypes);
         if (argTypes.length == 0) return false;
 
         boolean changed = false;
@@ -73,56 +68,22 @@ public class Resolver extends AbstractTransformer {
         List<AnnotationNode> plist = lists[pidx];
         if (Utils.isBlank(plist)) return false;
 
-        return applyZbPairing(plist, m_isAdvice, (bb, zb) -> resolveParamAnn(paramName, bb, zb));
+        return resolveAnns(plist, paramName);
     }
 
-    /**
-     * For each {@code @Patch.*} with {@link AnnCache#getMeta}, pairs a same-list ByteBuddy annotation with the same target descriptor when present;
-     * otherwise runs {@code onPair} on the ZombieBuddy annotation in-place ({@code bb == zb}).
-     */
-    private static boolean applyZbPairing(List<AnnotationNode> list, boolean isAdvice, BiPredicate<AnnotationNode, AnnotationNode> onPair) {
+    private boolean resolveAnns(List<AnnotationNode> list, String targetName) {
         if (Utils.isBlank(list)) return false;
 
-        Map<String, AnnotationNode> zbByTarget = zbAnnByTargetDesc(list, isAdvice);
-        if (zbByTarget.isEmpty()) return false;
-
-        HashSet<AnnotationNode> pairedZb = new HashSet<>();
         boolean changed = false;
-
         for (AnnotationNode ann : list) {
-            if (ann.desc.startsWith(Internal.ANN_PREFIX)) continue;
-
-            AnnotationNode zbAnn = zbByTarget.get(ann.desc);
-            if (zbAnn == null) continue;
-
-            pairedZb.add(zbAnn);
-            changed |= onPair.test(ann, zbAnn);
-        }
-
-        for (AnnotationNode zbAnn : zbByTarget.values()) {
-            if (!pairedZb.contains(zbAnn))
-                changed |= onPair.test(zbAnn, zbAnn);
+            changed |= resolveAnn(targetName, ann);
         }
 
         return changed;
     }
 
-    private static Map<String, AnnotationNode> zbAnnByTargetDesc(List<AnnotationNode> list, boolean isAdvice) {
-        Map<String, AnnotationNode> zbByTarget = new HashMap<>();
-        for (AnnotationNode ann : list) {
-            if (!ann.desc.startsWith(Internal.ANN_PREFIX)) continue;
-
-            var meta = AnnCache.getMeta(ann.desc, isAdvice);
-            if (meta == null || meta.targetAnnotation() == void.class) continue;
-
-            zbByTarget.put(Type.getDescriptor(meta.targetAnnotation()), ann);
-        }
-
-        return zbByTarget;
-    }
-
-    private boolean resolveParamAnn(String paramName, AnnotationNode bbAnn, AnnotationNode zbAnn) {
-        var ai = AnnCache.get(zbAnn.desc);
+    private boolean resolveAnn(String targetName, AnnotationNode ann) {
+        var ai = AnnCache.get(ann.desc);
         if (ai == null) return false;
 
         boolean changed = false;
@@ -133,50 +94,15 @@ public class Resolver extends AbstractTransformer {
             var flags_ = elemAnns.ofType(Flags.class);
             if (flags_ != null) {
                 Flags flags = flags_.load();
-                String targetElement = flags.targetElement();
-                if (Utils.isBlank(targetElement))
-                    targetElement = elem.getName();
-                changed |= processFlags(bbAnn, zbAnn, targetElement, flags, paramName);
+                String desc = elem.getReturnType().asErasure().getDescriptor();
+                changed |= processFlags(ann, elem.getName(), flags, targetName, desc);
             }
         }
-
-        changed |= applyMapBoolFromZbAnn(bbAnn, zbAnn);
         return changed;
     }
 
-    /** Applies {@link MapBool} metadata from {@code zbAnn}'s type onto {@code bbAnn} (ByteBuddy copy when present, or the ZombieBuddy node in-place when {@code bbAnn == zbAnn}). */
-    private static boolean applyMapBoolFromZbAnn(AnnotationNode bbAnn, AnnotationNode zbAnn) {
-        var ai = AnnCache.get(zbAnn.desc);
-        if (ai == null) return false;
-
-        boolean changed = false;
-        for (var elem : ai.td().getDeclaredMethods().asDefined()) {
-            var mapBool_ = elem.getDeclaredAnnotations().ofType(MapBool.class);
-            if (mapBool_ != null)
-                changed |= processMapBool(bbAnn, elem.getName(), mapBool_.load());
-        }
-        return changed;
-    }
-
-    private static boolean processMapBool(AnnotationNode bbAnn, String elemName, MapBool mapBool) {
-        Boolean bValue = AnnElements.fromValues(bbAnn.values).getBoolean(elemName);
-        if (bValue == null) return false;
-
-        bbAnn.visit(elemName, mapBoolEncodedClassLiteral(mapBool, bValue));
-        return true;
-    }
-
-    /** ASM runtime annotation {@code Class} values use {@link Type}; {@code void.class} default is {@link Type#VOID_TYPE} ({@code default_value: class V}). */
-    private static Type mapBoolEncodedClassLiteral(MapBool mapBool, boolean bValue) {
-        if (bValue)
-            return Type.getType(mapBool.onTrue());
-
-        Class<?> onFalse = mapBool.onFalse();
-        return onFalse == Internal.DropAnnParam.class ? Type.VOID_TYPE : Type.getType(onFalse);
-    }
-
-    private boolean processFlags(AnnotationNode bbAnn, AnnotationNode zbAnn, String elemName, Flags flags, String paramName) {
-        AnnElements els = AnnElements.fromValues(bbAnn.values);
+    private boolean processFlags(AnnotationNode ann, String elemName, Flags flags, String targetName, String elemDesc) {
+        AnnElements els = AnnElements.fromValues(ann.values);
         boolean changed = false;
         boolean hasList = false;
 
@@ -187,9 +113,6 @@ public class Resolver extends AbstractTransformer {
             hasList = true;
 
             if (values.size() == 1) {
-                // trivial case, just one value to fill in, no need to resolve, just convert String[] -> String
-                bbAnn.visit(elemName, values.get(0));
-                changed = true;
                 break;
             }
 
@@ -204,7 +127,7 @@ public class Resolver extends AbstractTransformer {
 
                 var r = fields.filter(named(fieldName));
                 if (r.size() == 1) {
-                    bbAnn.visit(elemName, fieldName);
+                    ann.visit(elemName, List.of(fieldName));
                     changed = true;
                     break;
                 }
@@ -213,11 +136,15 @@ public class Resolver extends AbstractTransformer {
         }
 
         if (!hasList && flags.inferFromTargetName() && Utils.isBlank(els.get(elemName))) {
-            bbAnn.visit(elemName, paramName);
+            ann.visit(elemName, inferredValue(elemDesc, targetName));
             changed = true;
         }
 
         return changed;
+    }
+
+    private static Object inferredValue(String elemDesc, String targetName) {
+        return "[Ljava/lang/String;".equals(elemDesc) ? List.of(targetName) : targetName;
     }
 }
 

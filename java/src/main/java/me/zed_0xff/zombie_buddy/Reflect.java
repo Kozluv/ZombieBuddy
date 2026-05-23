@@ -10,11 +10,11 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Fluent reflection chain. Entry point is {@link #on(Object)}; strings are resolved as class
@@ -34,8 +34,8 @@ public final class Reflect {
 
     public enum Flag {
         PUBLIC, PROTECTED, PACKAGE_PRIVATE, PRIVATE,
-        STATIC, INSTANCE
-        // NO_PARENT // do not ascend in class hierarchy; only declared members of the subject's class
+        STATIC, INSTANCE,
+        DECLARED // do not ascend in class hierarchy; only declared members of the subject's class
     }
 
     public static final Flag PUBLIC          = Flag.PUBLIC;
@@ -44,6 +44,7 @@ public final class Reflect {
     public static final Flag PRIVATE         = Flag.PRIVATE;
     public static final Flag STATIC          = Flag.STATIC;
     public static final Flag INSTANCE        = Flag.INSTANCE;
+    public static final Flag DECLARED        = Flag.DECLARED;
 
     private static final Reflect REFLECT_NULL = new Reflect(null);
     private static final Object  MISS         = new Object();

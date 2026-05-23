@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -188,6 +189,18 @@ public class Logger {
     public static String formatArg(Object o) {
         if (o == null) return "null";
 
+        for (var entry : _formatters.entrySet()) {
+            if (entry.getKey().isInstance(o)) {
+                try {
+                    return entry.getValue().apply(o);
+                } catch (Throwable t) {
+                    Logger.error("Formatter for " + entry.getKey() + " threw an exception on object: " + o, t);
+                    // fallback to default formatting
+                    break;
+                }
+            }
+        }
+
         if (o.getClass().isArray())  return formatArray(o);
         if (o instanceof List<?> l)  return formatList(l);
         if (o.getClass().isRecord()) return o.toString(); // records have a nice toString by default
@@ -216,5 +229,10 @@ public class Logger {
             }
         }
         return sb.toString();
+    }
+
+    private static final HashMap<Class<?>, Function<Object, String>> _formatters = new HashMap<>();
+    public static void addFormatter(Class<?> cls, Function<Object, String> formatter) {
+        _formatters.put(cls, formatter);
     }
 }

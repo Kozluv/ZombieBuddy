@@ -14,10 +14,7 @@ import net.bytebuddy.asm.Advice;
 
 class Converter_Patch_NameMap_Test extends AbstractTest {
     protected static Stream<Arguments> provideClasses() {
-        return Stream.of(
-                Arguments.of(me.zed_0xff.zombie_buddy.transformers.asmtree.Converter.class)
-                // Arguments.of(me.zed_0xff.zombie_buddy.transformers.bytebuddy.Converter.class)
-                );
+        return withTransformer(me.zed_0xff.zombie_buddy.transformers.asmtree.Converter.class);
     }
 
     @Patch(className = "me.zed_0xff.TestClass", methodName = "getFoo")
@@ -37,18 +34,21 @@ class Converter_Patch_NameMap_Test extends AbstractTest {
         assertThat(p.getDeclaredAnnotations())
             .hasSize(1);
 
-        Transformer transformer = cls.getDeclaredConstructor().newInstance();
-        var result = transformer.transform(bytes, ctx);
+        var run = runTransformer(ctx, bytes, cls);
+        try {
+            assertTransformed(run);
+            assertThat(run.bytes()).isNotNull();
 
-        assertThat(result.modified()).isTrue();
-        assertThat(result.bytes()).isNotNull();
+            p = ctx.getMethod("m1").getParameters().getOnly();
+            assertThat(p.getDeclaredAnnotations())
+                .hasSize(2);
 
-        p = ctx.getMethod("m1").getParameters().getOnly();
-        assertThat(p.getDeclaredAnnotations())
-            .hasSize(2);
-
-        var a = p.getDeclaredAnnotations().filter(x -> x.getAnnotationType().isAssignableTo(Advice.Local.class)).getOnly();
-        assertThat(a.getValue("value").resolve())
-            .isEqualTo(Patch.NAMEMAP_LOCAL_NAME);
+            var a = p.getDeclaredAnnotations().filter(x -> x.getAnnotationType().isAssignableTo(Advice.Local.class)).getOnly();
+            assertThat(a.getValue("value").resolve())
+                .isEqualTo(Patch.NAMEMAP_LOCAL_NAME);
+        } catch (Throwable t) {
+            printDumps(run.dumps());
+            throw t;
+        }
     }
 }

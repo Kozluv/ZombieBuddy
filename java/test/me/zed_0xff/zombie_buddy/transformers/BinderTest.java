@@ -18,8 +18,7 @@ class BinderTest extends AbstractTest {
         var ctx = new TestClassContext(Target1.class);
         byte[] bytes = ctx.getBytes();
 
-        Transformer transformer = cls.getDeclaredConstructor().newInstance();
-        var result = transformer.transform(bytes, ctx);
+        var result = runTransformer(ctx, bytes, cls);
         // assertThat(result.modified()).isTrue();
         // assertThat(result.bytes()).isNotNull();
     }
