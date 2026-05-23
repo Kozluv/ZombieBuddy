@@ -75,14 +75,12 @@ public class Converter extends AbstractTransformer {
             if (Utils.isBlank(anns)) continue;
 
             ParameterNode pn = new ParameterNode(getArgName(mn, i), 0); // XXX access flags is 0 for now
-            // Logger.debug("pn", pn, anns);
             changed |= convertAnns(pn, anns);
         }
         return changed;
     }
 
     private boolean convertAnns(Object node, List<AnnotationNode> list) {
-        // Logger.debug("Converter.convertAnns", node, list);
         if (Utils.isBlank(list)) return false;
 
         List<AnnotationNode> snapshot = List.copyOf(list);

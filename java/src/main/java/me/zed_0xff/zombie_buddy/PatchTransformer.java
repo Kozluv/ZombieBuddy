@@ -37,7 +37,7 @@ import net.bytebuddy.jar.asm.commons.SimpleRemapper;
  * Transforms patch classes by replacing Patch.* annotations with ByteBuddy equivalents.
  */
 final class PatchTransformer {
-    private static final Type NO_EXCEPTION_HANDLER = Type.getType("Lnet/bytebuddy/asm/Advice$NoExceptionHandler;"); // private
+    private static final Type NO_EXCEPTION_HANDLER = Type.getType(Patch.NO_EXCEPTION_DESC);
 
     // Track the class currently being transformed in a new-load callback. When Class.forName is
     // called on this same class from inside the callback, it triggers a circular inner load that

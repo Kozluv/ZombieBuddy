@@ -51,26 +51,6 @@ public final class Reflect {
 
     private final Object value;
 
-    // public final class RField<T> {
-    //     private final VarHandle handle;
-    // 
-    //     public Var(VarHandle handle) {
-    //         this.handle = handle;
-    //     }
-    // 
-    //     public Optional<T> get() {
-    //         return Optional.ofNullable(value);
-    //     }
-    //     
-    //     public T getOrDefault(T defaultValue) {
-    //         return defaultValue;
-    //     }
-    // 
-    //     public boolean set(T newValue) {
-    //         return false;
-    //     }
-    // }
-
     static void init(Instrumentation inst) {
         // inst.addTransformer(new java.lang.instrument.ClassFileTransformer() {
         //     @Override
@@ -199,7 +179,10 @@ public final class Reflect {
         EnumSet<Flag> flagSet = toFlagSet(flags);
         List<Method> out = new ArrayList<>();
         for (Method m : cinfo.methods) {
-            if (flagSet != null && !matchesMod(m.getModifiers(), flagSet)) continue;
+            if (flagSet != null) {
+                if (!matchesMod(m.getModifiers(), flagSet)) continue;
+                if (flagSet.contains(Flag.DECLARED) && m.getDeclaringClass() != cls) continue;
+            }
             out.add(m);
         }
         return out;
@@ -217,8 +200,10 @@ public final class Reflect {
         List<Field> out = new ArrayList<>();
         for (Field f : Accessor.allFields(cls)) {
             if (f.isSynthetic()) continue;
-
-            if (flagSet != null && !matchesMod(f.getModifiers(), flagSet)) continue;
+            if (flagSet != null) {
+                if (!matchesMod(f.getModifiers(), flagSet)) continue;
+                if (flagSet.contains(Flag.DECLARED) && f.getDeclaringClass() != cls) continue;
+            }
 
             out.add(f);
         }

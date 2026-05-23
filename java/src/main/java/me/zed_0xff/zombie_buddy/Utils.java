@@ -8,9 +8,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.util.Collection;
-import java.util.function.Supplier;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -24,7 +24,16 @@ public final class Utils {
     public static String toInternalName(Class<?> cls) { return cls.getName().replace('.', '/'); }
 
     /** Converts an ASM internal name (slashes) to a canonical class name (dots). */
-    public static String toCanonicalName(String internalName) { return internalName.replace('/', '.'); }
+    public static String toCanonicalName(String internalName) {
+        if (isBlank(internalName)) return internalName;
+
+        //   "Lnet/bytebuddy/asm/Advice$NoExceptionHandler;"
+        // => "net/bytebuddy/asm/Advice$NoExceptionHandler"
+        if (internalName.startsWith("L") && internalName.endsWith(";")) {
+            internalName = internalName.substring(1, internalName.length() - 1);
+        }
+        return internalName.replace('/', '.'); // => "net.bytebuddy.asm.Advice$NoExceptionHandler"
+    }
 
     private static final Pattern PRERELEASE_PATTERN = Pattern.compile("^([a-z]+)(\\d*)");
 

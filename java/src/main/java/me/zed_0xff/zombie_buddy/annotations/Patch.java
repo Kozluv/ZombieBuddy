@@ -60,17 +60,20 @@ public @interface Patch {
         Class<? extends Throwable> suppress() default NoException.class;
     }
 
+    public static final String NO_EXCEPTION_DESC = "Lnet/bytebuddy/asm/Advice$NoExceptionHandler;"; // private class
+
+    @Internal.Meta(targetAnnotationDesc = NO_EXCEPTION_DESC)
     public abstract static class NoException extends Throwable {}
 
-    @Deprecated(forRemoval = true)
+    @Internal.Meta(targetAnnotation = Advice.OnDefaultValue.class)
     public abstract static class OnDefaultValue extends Throwable {}
 
-    @Deprecated(forRemoval = true)
+    @Internal.Meta(targetAnnotation = Advice.OnNonDefaultValue.class)
     public abstract static class OnNonDefaultValue extends Throwable {}
 
     /** Binds the return value of the target method. {@code @Patch.OnExit} only. Use {@code readOnly = false} to overwrite it. */
     @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.PARAMETER)
+    @Target(ElementType.PARAMETER) 
     @Internal.Meta(targetAnnotation = Advice.Return.class)
     public @interface Return {
         boolean readOnly() default true;
@@ -88,7 +91,7 @@ public @interface Patch {
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.PARAMETER)
     @Internal.Meta(targetAnnotation = Advice.This.class)
-    @Internal.Meta(targetAnnotation = net.bytebuddy.implementation.bind.annotation.This.class)
+    @Internal.Meta(targetAnnotation = net.bytebuddy.implementation.bind.annotation.This.class, isAdvice = false)
     public @interface This {
         boolean readOnly() default true;
     }
@@ -98,7 +101,7 @@ public @interface Patch {
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.PARAMETER)
     @Internal.Meta(targetAnnotation = Advice.Argument.class)
-    @Internal.Meta(targetAnnotation = net.bytebuddy.implementation.bind.annotation.Argument.class)
+    @Internal.Meta(targetAnnotation = net.bytebuddy.implementation.bind.annotation.Argument.class, isAdvice = false)
     public @interface Argument {
         int value() default 0;
         boolean readOnly() default true;

@@ -41,7 +41,8 @@ public final class Internal {
     @Repeatable(Metas.class)
     public @interface Meta {
         Class<?> targetAnnotation() default void.class;
-        boolean isAdvice() default true;      // false => MethodDelegation
+        String targetAnnotationDesc() default "";       // for mapping to private classes
+        boolean isAdvice() default true;                // false => MethodDelegation
         Class<?>[] requireType() default {};
     }
 
