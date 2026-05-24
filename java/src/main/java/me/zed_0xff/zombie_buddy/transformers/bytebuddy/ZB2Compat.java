@@ -16,7 +16,7 @@ public class ZB2Compat extends AbstractTransformer {
 
     @Override
     protected ClassVisitor createVisitor(ClassWriter cw, byte[] classBytes) {
-        return new ClassRemapper(cw, new Remapper() {
+        return new ClassRemapper(cw, new Remapper(ASM_API) {
             @Override
             public String map(String internalName) {
                 if (internalName.equals(OLD) || internalName.startsWith(OLD + "$")) {
