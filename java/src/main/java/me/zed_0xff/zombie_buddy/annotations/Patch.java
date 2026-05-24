@@ -6,6 +6,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.List;
 
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AnnotationNode;
@@ -14,7 +15,9 @@ import org.objectweb.asm.tree.ParameterNode;
 import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.Utils;
 import me.zed_0xff.zombie_buddy.annotations.Internal.AnnElements;
+import me.zed_0xff.zombie_buddy.transformers.ClassContext;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.utility.JavaConstant.MethodHandle.HandleType;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
@@ -39,12 +42,12 @@ public @interface Patch {
         boolean skipOn() default false;
 
         public class Converter extends Internal.AnnConverterBase {
-            public AnnotationNode convert(AnnotationNode src, Object o) {
+            public AnnotationNode convert(AnnotationNode src, Object o, ClassContext ctx) throws Throwable {
                 var els = AnnElements.fromValues(src.values);
                 return createNode(
                         Advice.OnMethodEnter.class,
                         Boolean.TRUE.equals(els.getBoolean("skipOn"))
-                            ? new Object[] { "skipOn", Type.getType(Advice.OnNonDefaultValue.class) }
+                            ? new Object[] { "skipOn", Advice.OnNonDefaultValue.class }
                             : null
                 );
             }
@@ -179,7 +182,7 @@ public @interface Patch {
         boolean optional() default false;
 
         public class Converter extends Internal.AnnConverterBase {
-            public AnnotationNode convert(AnnotationNode src, Object o) {
+            public AnnotationNode convert(AnnotationNode src, Object o, ClassContext ctx) throws Throwable {
                 if (!(o instanceof ParameterNode node))
                     throw new IllegalArgumentException("Expected ParameterNode, got " + o.getClass().getName());
                 
@@ -231,22 +234,51 @@ public @interface Patch {
 
     @Retention(RetentionPolicy.RUNTIME)
     @Target({ElementType.FIELD, ElementType.PARAMETER})
-    @Internal.Meta(targetAnnotation = Advice.Handle.class, requireType = java.lang.invoke.MethodHandle.class)
+    @Internal.Meta(requireType = java.lang.invoke.MethodHandle.class)
     public @interface MethodHandle {
-        @Internal.Flags(inferFromTargetName = true, probeField = true)
-        String[] value()   default {};            // empty = infer from stub field name; multiple = try in order
+        @Internal.Flags(inferFromTargetName = true, probeMethod = true)
+        String[] name()    default {};            // -> (String) name
         String className() default "";            // empty = infer from enclosing @Patch.className(); mutually exclusive with owner()
-        Class<?> owner()   default void.class;    // type-safe alternative to className(); mutually exclusive with className()
         boolean optional() default false;         // false = drop patch class on missing field; true = leave field as null
 
-        Class<?> returnType();
-        Class<?>[] paramTypes() default {};
+        Class<?> returnType();                    // verbatim
+        Class<?>[] paramTypes() default {};       // ->	parameterTypes
+        Class<?> owner() default void.class;      // verbatim; type-safe alternative to className(); mutually exclusive with className()
+
+        public class Converter extends Internal.AnnConverterBase {
+            public AnnotationNode convert(AnnotationNode src, Object o, ClassContext ctx) throws Throwable {
+                if (!(o instanceof ParameterNode node))
+                    throw new IllegalArgumentException("Expected ParameterNode, got " + o.getClass().getName());
+
+                var els = AnnElements.fromValues(src.values);
+                String name = resolveSingleName(els, node, "name");
+                if (name == null) {
+                    Logger.warn("Invalid @Patch.MethodHandle annotation: exactly one method name must be specified in 'name' element", src, els.getListStr("name"));
+                    return null;
+                }
+
+                Type returnType = requireAnnType(els.get("returnType"));
+                List<Type> paramTypes = annTypeList(els.get("paramTypes"));
+                var ownerType = resolveHandleOwner(ctx, els);
+                HandleType handleType = resolveHandleType(ownerType, name, returnType, paramTypes);
+
+                return createNode(
+                    Advice.Handle.class,
+                    "name"          , name,
+                    "parameterTypes", paramTypes,
+                    "returnType"    , returnType,
+                    "type"          , handleType,
+                    "owner"         , resolveHandleOwnerAnn(els)
+                );
+            }
+        }
     }
 
     @Retention(RetentionPolicy.RUNTIME)
     @Target({ElementType.FIELD, ElementType.PARAMETER})
     @Internal.Meta(requireType = java.lang.invoke.VarHandle.class)
     public @interface VarHandle {
+        @Internal.Flags(inferFromTargetName = true, probeField = true)
         String[] name()    default {};            // empty = infer from stub field name; multiple = try in order
         String className() default "";            // empty = infer from enclosing @Patch.className(); mutually exclusive with owner()
         Class<?> owner()   default void.class;    // type-alternative to className(); mutually exclusive with className()
@@ -255,7 +287,7 @@ public @interface Patch {
         Class<?> type();
 
         public class Converter extends Internal.AnnConverterBase {
-            public AnnotationNode convert(AnnotationNode src, Object o) {
+            public AnnotationNode convert(AnnotationNode src, Object o, ClassContext ctx) throws Throwable {
                 if (!(o instanceof ParameterNode node))
                     throw new IllegalArgumentException("Expected ParameterNode, got " + o.getClass().getName());
                 
@@ -271,9 +303,9 @@ public @interface Patch {
                     return null;
                 }
                 return createNode(
-                        Advice.Local.class,
-                        "value", ZB_PREFIX + els.get("type").toString() + "|" + name
-);
+                    Advice.Local.class,
+                    "value", ZB_PREFIX + els.get("type").toString() + "|" + name
+                );
             }
         }
     }

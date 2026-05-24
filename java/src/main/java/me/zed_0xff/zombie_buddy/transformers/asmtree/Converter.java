@@ -116,9 +116,10 @@ public class Converter extends AbstractTransformer {
         AnnConverter conv = ai.annConverter();
         if (conv != null) {
             try {
-                return conv.convert(src, node);
+                return conv.convert(src, node, m_ctx);
             } catch (Throwable t) {
-                Logger.error("Failed to convert annotation " + src.desc + " on node " + node, t);
+                Logger.error("Failed to convert annotation " + Logger.formatArg(src) + " on node " + Logger.formatArg(node));
+                Logger.printStackTrace(t, 10);
                 return null;
             }
         }

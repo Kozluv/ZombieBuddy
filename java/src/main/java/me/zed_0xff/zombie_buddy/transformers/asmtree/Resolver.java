@@ -20,9 +20,11 @@ import net.bytebuddy.description.type.TypeDescription;
  * Pre-Converter pass: rewrites ZB annotations in-place using element {@link Flags}. Does not require {@link Internal.Meta}.
  */
 public class Resolver extends AbstractTransformer {
+    private static final Logger.Instance _logger = Logger.get("Resolver");
+
     @Override
     protected boolean transformNode(ClassNode cn) {
-        // Logger.debug("Resolver.transformNode", cn, m_ctx.getTarget());
+        _logger.debug("Resolver.transformNode", cn, m_ctx.getTarget());
         if (m_ctx.getTarget() == null) return false;
 
         boolean changed = false;
@@ -62,7 +64,7 @@ public class Resolver extends AbstractTransformer {
     }
 
     private boolean resolveParamAnns(List<AnnotationNode>[] lists, int pidx, String paramName) {
-        // Logger.debug("resolveParamAnns", lists, pidx, paramName);
+        _logger.debug("resolveParamAnns", lists, pidx, paramName);
         if (lists == null || pidx >= lists.length) return false;
 
         List<AnnotationNode> plist = lists[pidx];
@@ -83,6 +85,7 @@ public class Resolver extends AbstractTransformer {
     }
 
     private boolean resolveAnn(String targetName, AnnotationNode ann) {
+        _logger.debug("resolveAnn", targetName, ann);
         var ai = AnnCache.get(ann.desc);
         if (ai == null) return false;
 
@@ -101,41 +104,72 @@ public class Resolver extends AbstractTransformer {
         return changed;
     }
 
+    private boolean probeField(AnnotationNode ann, String elemName, AnnElements els, boolean[] hasList) {
+        Object raw = els.get(elemName);
+        if (!(raw instanceof List<?> values) || Utils.isBlank(values))
+            return false;
+
+        hasList[0] = true;
+        if (values.size() == 1)
+            return false;
+
+        TypeDescription td = m_ctx.getTarget();
+        if (td == null) {
+            _logger.once.warn("cannot find patch target class for", m_ctx.className());
+            return false;
+        }
+        var fields = td.getDeclaredFields();
+        for (var f : values) {
+            if (!(f instanceof String fieldName)) continue;
+
+            var r = fields.filter(named(fieldName));
+            if (r.size() == 1) {
+                ann.visit(elemName, List.of(fieldName));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean probeMethod(AnnotationNode ann, String elemName, AnnElements els, boolean[] hasList) {
+        Object raw = els.get(elemName);
+        if (!(raw instanceof List<?> values) || Utils.isBlank(values))
+            return false;
+
+        hasList[0] = true;
+        if (values.size() == 1)
+            return false;
+
+        TypeDescription td = m_ctx.getTarget();
+        if (td == null) {
+            _logger.once.warn("cannot find patch target class for", m_ctx.className());
+            return false;
+        }
+        var methods = td.getDeclaredMethods();
+        for (var m : values) {
+            if (!(m instanceof String methodName)) continue;
+
+            var r = methods.filter(named(methodName));
+            if (r.size() == 1) {
+                ann.visit(elemName, List.of(methodName));
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean processFlags(AnnotationNode ann, String elemName, Flags flags, String targetName, String elemDesc) {
+        _logger.debug("processFlags", elemName, flags, targetName, elemDesc);
         AnnElements els = AnnElements.fromValues(ann.values);
         boolean changed = false;
-        boolean hasList = false;
+        boolean hasList[] = new boolean[1];
 
-        while (flags.probeField()) {
-            Object raw = els.get(elemName);
-            if (!(raw instanceof List<?> values) || Utils.isBlank(values)) break;
+        if (flags.probeField())
+            changed |= probeField(ann, elemName, els, hasList);
+        if (flags.probeMethod())
+            changed |= probeMethod(ann, elemName, els, hasList);
 
-            hasList = true;
-
-            if (values.size() == 1) {
-                break;
-            }
-
-            TypeDescription td = m_ctx.getTarget();
-            if (td == null) {
-                Logger.once.warn("cannot find patch target class for", m_ctx.className());
-                break;
-            }
-            var fields = td.getDeclaredFields();
-            for (var f : values) {
-                if (!(f instanceof String fieldName)) continue;
-
-                var r = fields.filter(named(fieldName));
-                if (r.size() == 1) {
-                    ann.visit(elemName, List.of(fieldName));
-                    changed = true;
-                    break;
-                }
-            }
-            break;
-        }
-
-        if (!hasList && flags.inferFromTargetName() && Utils.isBlank(els.get(elemName))) {
+        if (!hasList[0] && flags.inferFromTargetName() && Utils.isBlank(els.get(elemName))) {
             ann.visit(elemName, inferredValue(elemDesc, targetName));
             changed = true;
         }

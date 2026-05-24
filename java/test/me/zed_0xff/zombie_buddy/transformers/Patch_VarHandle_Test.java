@@ -36,7 +36,7 @@ class Patch_VarHandle_Test extends AbstractTest {
         void getFoo() {}
     }
 
-    private static final String TARGET = "me.zed_0xff.zombie_buddy.transformers.Resolver_Patch_VarHandle_Test$Target1";
+    private static final String TARGET = "me.zed_0xff.zombie_buddy.transformers.Patch_VarHandle_Test$Target1";
 
     @TestCase(field = ZB_PREFIX + "I|implicit")
     @Patch(className = TARGET, methodName = "getFoo")

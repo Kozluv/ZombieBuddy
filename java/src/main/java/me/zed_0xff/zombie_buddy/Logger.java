@@ -66,7 +66,9 @@ public class Logger {
         public void setLevel(int level)  { this.m_level = level; }
         public void setMaxLineLen(int l) { this.m_maxLineLen = l; }
 
-        public Instance withTag(String tag) {
+        public Instance withTag(String tag) { return withTag(tag, m_level); }
+
+        public Instance withTag(String tag, int level) {
             if (Utils.isBlank(tag)) return this;
 
             String[] newTags = Arrays.copyOf(m_tags, m_tags.length + 1);
@@ -138,9 +140,10 @@ public class Logger {
     }
 
     private static final Map<String, Instance> _instances = new HashMap<>();
-    public static Instance get(String tag) {
+    public static Instance get(String tag) { return get(tag, DEFAULT_LEVEL); }
+    public static Instance get(String tag, int level) {
         if (tag == null) return DEFAULT;
-        return _instances.computeIfAbsent(tag, t -> new Instance(DEFAULT.m_level, DEFAULT.m_maxLineLen, t));
+        return _instances.computeIfAbsent(tag, t -> new Instance(level, DEFAULT.m_maxLineLen, t));
     }
 
     public static final Instance.Once once = DEFAULT.once;
@@ -156,14 +159,24 @@ public class Logger {
     static void setLevel(int level) { DEFAULT.setLevel(level); }
 
     public static void printStackTrace(Throwable t) {
-        if (!Agent.arguments.containsKey("filter_stacktrace")) { // undocumented; intentionally omitted from CommandLine.md
+        printStackTrace(t, -1);
+    }
+
+    public static void printStackTrace(Throwable t, int maxFrames) {
+        boolean bFilter = Agent.arguments.containsKey("filter_stacktrace"); // undocumented; intentionally omitted from CommandLine.md
+        if (!bFilter && maxFrames < 0) {
             t.printStackTrace();
             return;
         }
+
         while (t != null) {
             msg(STDERR, t.toString());
+            int frameCount = 0;
             for (StackTraceElement f : t.getStackTrace()) {
-                if (f.getClassName().startsWith("me.zed_0xff")) msg(STDERR, "    at " + f);
+                if (!bFilter || f.getClassName().startsWith("me.zed_0xff"))
+                    msg(STDERR, "    at " + f);
+                if (maxFrames > 0 && ++frameCount >= maxFrames)
+                    break;
             }
             t = t.getCause();
             if (t != null) msg(STDERR, "  Caused by:");

@@ -1,5 +1,6 @@
 package me.zed_0xff.zombie_buddy.jardump;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -123,18 +124,69 @@ public class AsmDump extends CLIUtil {
         return t;
     }
 
-    private boolean isAssignable(TypeDescription target, TypeDescription value) {
+    private boolean isAssignable(TypeDescription target, TypeDescription valueType, Object value) {
         if (target.isPrimitive()) {
             // allow unboxing conversions for primitives (e.g. int can be assigned from Integer)
-            return box(target).isAssignableFrom(value);
-        } else {
-            if (target.isAssignableFrom(value)) return true;
-            if (target.represents(Class.class) && value.represents(Type.class)) {
-                // allow Type to be assigned to Class for annotation members of type Class<?>
-                return true;
-            }
+            return box(target).isAssignableFrom(valueType);
         }
+
+        if (target.isEnum() && value instanceof String s) {
+            return isEnumDisplayString(target, s);
+        }
+
+        if (target.isArray()) {
+            if (value instanceof List<?> list) return isArrayValueAssignable(target, list);
+            if (value != null && value.getClass().isArray()) return isArrayValueAssignable(target, value);
+        }
+
+        if (target.isAssignableFrom(valueType)) return true;
+        if (target.represents(Class.class) && valueType.represents(Type.class)) {
+            // allow Type to be assigned to Class for annotation members of type Class<?>
+            return true;
+        }
+
         return false;
+    }
+
+    /** {@link AnnotationVisitor#visitArray} values are collected as {@link List}, not Java arrays. */
+    private boolean isArrayValueAssignable(TypeDescription targetArray, List<?> list) {
+        TypeDescription component = targetArray.getComponentType();
+        for (Object elem : list) {
+            if (elem == null) continue;
+            if (!isAssignable(component, TypeDescription.ForLoadedType.of(elem.getClass()), elem)) return false;
+        }
+
+        return true;
+    }
+
+    private boolean isArrayValueAssignable(TypeDescription targetArray, Object array) {
+        TypeDescription component = targetArray.getComponentType();
+        for (int i = 0, len = Array.getLength(array); i < len; i++) {
+            Object elem = Array.get(array, i);
+            if (elem == null) continue;
+            if (!isAssignable(component, TypeDescription.ForLoadedType.of(elem.getClass()), elem)) return false;
+        }
+
+        return true;
+    }
+
+    /** {@link AnnotationVisitor#visitEnum} values are stored as {@code SimpleName.CONSTANT} display strings. */
+    private static boolean isEnumDisplayString(TypeDescription enumType, String display) {
+        int dot = display.lastIndexOf('.');
+        if (dot <= 0 || dot >= display.length() - 1) return false;
+
+        String constantName = display.substring(dot + 1);
+        if (!enumType.isAssignableTo(Enum.class)) return true;
+
+        try {
+            @SuppressWarnings({ "unchecked", "rawtypes" })
+            Class<? extends Enum> enumCls = (Class<? extends Enum>) Class.forName(enumType.getName());
+            Enum.valueOf(enumCls, constantName);
+
+            return true;
+        } catch (ReflectiveOperationException | IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private record Rule(boolean allowBlank, boolean allowDefault) {}
@@ -161,7 +213,7 @@ public class AsmDump extends CLIUtil {
             } else {
                 TypeDescription returnType = m.getReturnType().asErasure();
                 TypeDescription valueType  = TypeDescription.ForLoadedType.of(value.getClass());
-                if (!isAssignable(returnType, valueType)) {
+                if (!isAssignable(returnType, valueType, value)) {
                     Logger.debug(m.getReturnType() + " " + name + " is not assignable from " + valueType, value);
                     valid = false;
                 }
@@ -441,13 +493,14 @@ public class AsmDump extends CLIUtil {
                             }
                         }
 
-                        if (nAnns > 4 || args.length > 10) {
+                        final String oneLine = String.join(" ", tbl.rows().stream().map(r -> r.toString()).toArray(String[]::new));
+                        if (nAnns > 4 || args.length > 10 || (oneLine.length() > 120 && args.length > 1)) {
                             // multi-line if there are many annotations but not all params are annotated (to avoid too much clutter)
                             msb.append("\n");
                             msb.append(indent(tbl.toString()));
                         } else {
                             // one-line
-                            msb.append(String.join(" ", tbl.rows().stream().map(r -> r.toString()).toArray(String[]::new)) );
+                            msb.append(oneLine);
                         }
 
                         msb.append(")\n");
