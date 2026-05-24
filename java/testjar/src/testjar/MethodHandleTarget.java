@@ -1,5 +1,6 @@
 package testjar;
 
-class PackagePrivateTarget {
+// intentionally package-private
+class MethodHandleTarget {
     private int privateMethod() { return 99; }
 }

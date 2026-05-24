@@ -21,6 +21,7 @@ import me.zed_0xff.zombie_buddy.annotations.Internal.Meta;
 import me.zed_0xff.zombie_buddy.annotations.Patch;
 import me.zed_0xff.zombie_buddy.transformers.AnnCache;
 import me.zed_0xff.zombie_buddy.transformers.AnnCache.AnnInfo;
+import me.zed_0xff.zombie_buddy.transformers.AnnElements;
 
 /**
  * For each {@code @Patch.*} annotation that declares {@link Internal.Meta}, appends the matching target annotation

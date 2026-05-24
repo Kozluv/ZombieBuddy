@@ -14,7 +14,7 @@ import org.objectweb.asm.tree.ParameterNode;
 
 import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.Utils;
-import me.zed_0xff.zombie_buddy.annotations.Internal.AnnElements;
+import me.zed_0xff.zombie_buddy.transformers.AnnElements;
 import me.zed_0xff.zombie_buddy.transformers.ClassContext;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.utility.JavaConstant.MethodHandle.HandleType;

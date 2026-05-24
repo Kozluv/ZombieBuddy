@@ -31,23 +31,97 @@ class Patch_VarHandle_Test extends AbstractTest {
     }
 
     static class Target1 {
-        private int first;
+        public int publicField;
+        public static int publicStaticField;
+        private int privateField;
+        private static int privateStaticField;
+        protected int protectedField;
+        protected static int protectedStaticField;
+        private String stringField;
         private int implicit;
+
         void getFoo() {}
     }
 
-    private static final String TARGET = "me.zed_0xff.zombie_buddy.transformers.Patch_VarHandle_Test$Target1";
+    private static final String TARGET  = "me.zed_0xff.zombie_buddy.transformers.Patch_VarHandle_Test$Target1";
+    private static final String TARGET2 = "testjar.VarHandleTarget";
 
     @TestCase(field = ZB_PREFIX + "I|implicit")
     @Patch(className = TARGET, methodName = "getFoo")
-    static class Patch1 {
-        static void m0(@Patch.VarHandle(type=int.class) VarHandle implicit) {}
+    static class PatchImplicit {
+        static void m0(@Patch.VarHandle(type = int.class) VarHandle implicit) {}
     }
 
-    @TestCase(field = ZB_PREFIX + "I|explicit")
+    @TestCase(field = ZB_PREFIX + "I|privateField")
     @Patch(className = TARGET, methodName = "getFoo")
-    static class Patch2 {
-        static void m0(@Patch.VarHandle(type=int.class, name="explicit") VarHandle vh) {}
+    static class PatchExplicit {
+        static void m0(@Patch.VarHandle(type = int.class, name = "privateField") VarHandle vh) {}
+    }
+
+    @TestCase(field = ZB_PREFIX + "I|publicField")
+    @Patch(className = TARGET, methodName = "getFoo")
+    static class PatchPublic {
+        static void m0(@Patch.VarHandle(type = int.class) VarHandle publicField) {}
+    }
+
+    @TestCase(field = ZB_PREFIX + "I|publicStaticField")
+    @Patch(className = TARGET, methodName = "getFoo")
+    static class PatchPublicStatic {
+        static void m0(@Patch.VarHandle(type = int.class) VarHandle publicStaticField) {}
+    }
+
+    @TestCase(field = ZB_PREFIX + "I|privateField")
+    @Patch(className = TARGET, methodName = "getFoo")
+    static class PatchPrivate {
+        static void m0(@Patch.VarHandle(type = int.class) VarHandle privateField) {}
+    }
+
+    @TestCase(field = ZB_PREFIX + "I|privateStaticField")
+    @Patch(className = TARGET, methodName = "getFoo")
+    static class PatchPrivateStatic {
+        static void m0(@Patch.VarHandle(type = int.class) VarHandle privateStaticField) {}
+    }
+
+    @TestCase(field = ZB_PREFIX + "I|protectedField")
+    @Patch(className = TARGET, methodName = "getFoo")
+    static class PatchProtected {
+        static void m0(@Patch.VarHandle(type = int.class) VarHandle protectedField) {}
+    }
+
+    @TestCase(field = ZB_PREFIX + "I|protectedStaticField")
+    @Patch(className = TARGET, methodName = "getFoo")
+    static class PatchProtectedStatic {
+        static void m0(@Patch.VarHandle(type = int.class) VarHandle protectedStaticField) {}
+    }
+
+    @TestCase(field = ZB_PREFIX + "Ljava/lang/String;|stringField")
+    @Patch(className = TARGET, methodName = "getFoo")
+    static class PatchString {
+        static void m0(@Patch.VarHandle(type = String.class) VarHandle stringField) {}
+    }
+
+    @TestCase(field = ZB_PREFIX + "I|privateField")
+    @Patch(className = TARGET, methodName = "getFoo")
+    static class PatchRenamed {
+        static void m0(@Patch.VarHandle(type = int.class, name = "privateField") VarHandle publicField) {}
+    }
+
+    @TestCase(field = ZB_PREFIX + "I|privateField")
+    @Patch(className = TARGET, methodName = "getFoo")
+    static class PatchProbed {
+        static void m0(@Patch.VarHandle(type = int.class, name = { "foo", "privateField", "bar" }) VarHandle vh) {}
+    }
+
+    @TestCase(field = ZB_PREFIX + "I|privateField")
+    @Patch(className = TARGET, methodName = "getFoo")
+    static class PatchCrossClassName {
+        static void m0(@Patch.VarHandle(type = int.class, name = { "foo", "privateField", "bar" }, className = TARGET2) VarHandle vh) {}
+    }
+
+    @TestCase(field = ZB_PREFIX + "I|privateField")
+    @Patch(className = TARGET, methodName = "getFoo")
+    static class PatchCrossClassExplicit {
+        static void m0(@Patch.VarHandle(type = int.class, name = "privateField", className = TARGET2) VarHandle vh) {}
     }
 
     @ParameterizedTest
@@ -57,19 +131,23 @@ class Patch_VarHandle_Test extends AbstractTest {
             Class<?> patchCls
     ) throws Exception {
         TestCase tc = patchCls.getAnnotation(TestCase.class);
+        assertThat(tc).isNotNull();
+
         var ctx = new TestClassContext(patchCls);
         byte[] bytes = ctx.getBytes();
 
-        var p = ctx.getMethod("m0").getParameters().getOnly();
-        assertThat(p.getDeclaredAnnotations()).hasSize(1);
+        var vhParam = ctx.getMethod("m0").getParameters().getOnly();
+        assertThat(vhParam.getDeclaredAnnotations()).hasSize(1);
 
         var run = runTransformers(ctx, bytes, transformers);
 
         try {
-            p = ctx.getMethod("m0").getParameters().getOnly();
-            assertThat(p.getDeclaredAnnotations()).hasSize(2);
-            var a = p.getDeclaredAnnotations().ofType(Advice.Local.class).load();
-            assertThat(a.value()).isEqualTo(tc.field());
+            assertTransformed(run);
+
+            vhParam = ctx.getMethod("m0").getParameters().getOnly();
+            assertThat(vhParam.getDeclaredAnnotations()).hasSize(2);
+            var local = vhParam.getDeclaredAnnotations().ofType(Advice.Local.class).load();
+            assertThat(local.value()).isEqualTo(tc.field());
         } catch (Throwable t) {
             printDumps(run.dumps());
             throw t;

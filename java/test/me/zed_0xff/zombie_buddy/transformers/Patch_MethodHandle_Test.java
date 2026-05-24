@@ -57,7 +57,7 @@ class Patch_MethodHandle_Test extends AbstractTest {
     }
 
     private static final String TARGET  = "me.zed_0xff.zombie_buddy.transformers.Patch_MethodHandle_Test$Target1";
-    private static final String TARGET2 = "testjar.PackagePrivateTarget";
+    private static final String TARGET2 = "testjar.MethodHandleTarget";
 
     @TestCase(handleName = "publicMethod", handleType = HandleType.INVOKE_VIRTUAL, intResult = 42)
     @Patch(className = TARGET, methodName = "getFoo")
@@ -196,7 +196,7 @@ class Patch_MethodHandle_Test extends AbstractTest {
         static Object result;
 
         @Patch.OnEnter
-        static void m0(@Patch.MethodHandle(name = {"foo", "privateMethod", "bar"}, className = "testjar.PackagePrivateTarget", returnType = int.class) MethodHandle handle) throws Throwable {
+        static void m0(@Patch.MethodHandle(name = {"foo", "privateMethod", "bar"}, className = TARGET2, returnType = int.class) MethodHandle handle) throws Throwable {
             called = true;
         }
     }

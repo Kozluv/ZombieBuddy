@@ -12,8 +12,10 @@ import org.objectweb.asm.tree.MethodNode;
 
 import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.Utils;
+import me.zed_0xff.zombie_buddy.annotations.Internal.AnnConverterBase;
 import me.zed_0xff.zombie_buddy.annotations.Internal.Flags;
 import me.zed_0xff.zombie_buddy.transformers.AnnCache;
+import me.zed_0xff.zombie_buddy.transformers.AnnElements;
 import net.bytebuddy.description.type.TypeDescription;
 
 /*
@@ -113,7 +115,8 @@ public class Resolver extends AbstractTransformer {
         if (values.size() == 1)
             return false;
 
-        TypeDescription td = m_ctx.getTarget();
+        TypeDescription td = AnnConverterBase.resolveHandleOwner(m_ctx, AnnElements.fromValues(ann.values));
+        if (td == null) td = m_ctx.getTarget();
         if (td == null) {
             _logger.once.warn("cannot find patch target class for", m_ctx.className());
             return false;
@@ -140,7 +143,8 @@ public class Resolver extends AbstractTransformer {
         if (values.size() == 1)
             return false;
 
-        TypeDescription td = m_ctx.getTarget();
+        TypeDescription td = AnnConverterBase.resolveHandleOwner(m_ctx, AnnElements.fromValues(ann.values));
+        if (td == null) td = m_ctx.getTarget();
         if (td == null) {
             _logger.once.warn("cannot find patch target class for", m_ctx.className());
             return false;

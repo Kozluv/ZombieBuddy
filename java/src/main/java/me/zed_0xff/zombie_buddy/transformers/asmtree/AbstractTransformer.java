@@ -2,10 +2,8 @@ package me.zed_0xff.zombie_buddy.transformers.asmtree;
 
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
@@ -45,35 +43,6 @@ abstract class AbstractTransformer extends Transformer {
         String cacheKey = m_ctx.className() + "|" + mn.name + "|" + mn.desc;
         _methodArgNamesCache.computeIfAbsent(cacheKey, k -> getArgNames(mn));
         return _methodArgNamesCache.get(cacheKey).get(pidx);
-    }
-
-    static class AnnElements extends HashMap<String, Object> {
-        public static AnnElements fromValues(List<Object> values) {
-            if (Utils.isBlank(values)) return new AnnElements();
-
-            AnnElements map = new AnnElements();
-            for (int i = 0; i < values.size(); i += 2) {
-                map.put((String)values.get(i), values.get(i + 1));
-            }
-            return map;
-        }
-
-        /** ASM runtime may store annotation booleans as {@link Integer} ({@code 0}/{@code 1}) instead of {@link Boolean}. */
-        public Boolean getBoolean(String name) {
-            Object val = get(name);
-            if (val instanceof Boolean b) return b;
-            if (val instanceof Integer j) return j != 0;
-
-            return null;
-        }
-
-        public List<Object> toValues() {
-            if (Utils.isBlank(this)) return List.of();
-
-            return this.entrySet().stream()
-                .flatMap(e -> Stream.of(e.getKey(), e.getValue()))
-                .toList();
-        }
     }
 
     // overridden by subclasses
