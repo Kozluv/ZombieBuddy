@@ -53,6 +53,7 @@ def MOD_ID = project.projectDir.parentFile.name
 jar {
     archiveBaseName.set(MOD_ID)
     archiveClassifier.set("plain")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {
         attributes(
             'Premain-Class': 'me.zed_0xff.zombie_buddy.Agent',
