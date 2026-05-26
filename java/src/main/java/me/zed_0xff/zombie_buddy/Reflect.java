@@ -22,14 +22,6 @@ import java.util.function.Supplier;
  * names. Every step returns a new {@code Reflect}; a failed step produces a null-valued chain
  * that silently propagates — call {@link #isPresent()} or {@link #as} at the end to detect
  * failure.
- *
- * <pre>{@code
- * String dir = Reflect.on("zombie.ZomboidFileSystem")
- *     .getInstance()
- *     .call("getCacheDir")
- *     .as(String.class)
- *     .orElse(null);
- * }</pre>
  */
 public final class Reflect {
 
@@ -150,6 +142,7 @@ public final class Reflect {
         return new Reflect(Accessor.tryGet(cls, "instance", null));
     }
 
+    @Deprecated
     public Reflect call(String methodName, Object... args) {
         if (value == null || Utils.isBlank(methodName)) return REFLECT_NULL;
         try {

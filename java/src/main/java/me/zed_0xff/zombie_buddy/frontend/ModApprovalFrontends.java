@@ -2,7 +2,6 @@ package me.zed_0xff.zombie_buddy.frontend;
 
 import java.util.Locale;
 
-import me.zed_0xff.zombie_buddy.Accessor;
 import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.Reflect;
 
@@ -38,7 +37,7 @@ public final class ModApprovalFrontends {
             return new SwingModApprovalFrontend();
         }
         if (ARG_TINYFD.equals(v)) {
-            if (Accessor.findClass(TINYFD_CLASS) == null) {
+            if (!Reflect.on(TINYFD_CLASS).isPresent()) {
                 Logger.warn("frontend=tinyfd but " + TINYFD_CLASS + " not found; using auto");
                 return resolveAuto();
             }
@@ -90,51 +89,40 @@ public final class ModApprovalFrontends {
      */
     private static boolean lwjglxDisplayIsCreated() {
         try {
-            Class<?> displayClass = Accessor.findClass(LWJGLX_DISPLAY_CLASS);
-            if (displayClass == null) {
-                return false;
-            }
-            Object r = Reflect.on(displayClass).call("isCreated").orElse(null);
-            return Boolean.TRUE.equals(r);
+            // public static boolean isCreated()
+            return (boolean) Reflect
+                .fastcall(() -> Reflect.on(LWJGLX_DISPLAY_CLASS).getMethodHandle(boolean.class, "isCreated"))
+                .invokeExact();
         } catch (Throwable t) {
+            Logger.printStackTrace(t);
             return false;
         }
     }
 
     private static boolean imguiAvailable() {
-        try {
-            return Accessor.findClass(IMGUI_CLASS) != null
-                && Accessor.findClass(IMGUI_GL3_CLASS) != null;
-        } catch (LinkageError e) {
-            Logger.warn("ImGui classes are present but could not be loaded: " + e);
-            return false;
-        }
+        return Reflect.on(IMGUI_CLASS).isPresent() && Reflect.on(IMGUI_GL3_CLASS).isPresent();
     }
 
     private static boolean lwjglxDisplayWindowReady() {
+        if (!lwjglxDisplayIsCreated()) {
+            return false;
+        }
         try {
-            Class<?> displayClass = Accessor.findClass(LWJGLX_DISPLAY_CLASS);
-            if (displayClass == null) {
-                return false;
-            }
-            Object created = Reflect.on(displayClass).call("isCreated").orElse(null);
-            if (!Boolean.TRUE.equals(created)) {
-                return false;
-            }
-            Object window = Reflect.on(displayClass).call("getWindow").orElse(null);
-            return window instanceof Long && ((Long) window).longValue() != 0;
+            // public static long getWindow()
+            long handle = (long) Reflect
+                .fastcall(() -> Reflect.on(LWJGLX_DISPLAY_CLASS).getMethodHandle(long.class, "getWindow"))
+                .invokeExact();
+            
+            return handle != 0;
         } catch (Throwable t) {
+            Logger.printStackTrace(t);
             return false;
         }
     }
 
     /** Mirrors {@code zombie.network.GameServer#server} (dedicated JAR / {@code -Dserver=true}). */
     private static boolean gameServerDedicatedFlag() {
-        Class<?> gs = Accessor.findClass(GAME_SERVER_CLASS);
-        if (gs == null) {
-            return false;
-        }
-        Object v = Reflect.on(gs).staticField("server").orElse(Boolean.FALSE);
+        Object v = Reflect.on(GAME_SERVER_CLASS).staticField("server").orElse(Boolean.FALSE);
         return Boolean.TRUE.equals(v);
     }
 }
