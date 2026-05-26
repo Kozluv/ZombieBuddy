@@ -11,6 +11,7 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,7 +24,7 @@ import java.util.function.Supplier;
  * that silently propagates — call {@link #isPresent()} or {@link #as} at the end to detect
  * failure.
  */
-public final class Reflect {
+public class Reflect {
 
     public enum Flag {
         PUBLIC, PROTECTED, PACKAGE_PRIVATE, PRIVATE,
@@ -40,9 +41,9 @@ public final class Reflect {
     public static final Flag DECLARED        = Flag.DECLARED;
 
     private static final Reflect REFLECT_NULL = new Reflect(null);
-    private static final Object  MISS         = new Object();
+    private static final Object  MISS         = ClassInfo.MISS;
 
-    private final Object value;
+    private final Object m_obj;
 
     static void init(Instrumentation inst) {
         // inst.addTransformer(new java.lang.instrument.ClassFileTransformer() {
@@ -55,8 +56,60 @@ public final class Reflect {
         // });
     }
 
-    private Reflect(Object value) {
-        this.value = value;
+    public static class RField {
+        private final VarHandle m_handle;
+        private final Object    m_receiver;
+
+        private RField(VarHandle handle, Object receiver) {
+            m_handle = handle;
+            m_receiver = receiver;
+        }
+
+        public boolean isPresent() {
+            return m_handle != null;
+        }
+
+        public VarHandle handle() {
+            return m_handle;
+        }
+
+        public Object get(Object defaultValue) {
+            if (m_handle == null) return defaultValue;
+
+            try {
+                return m_receiver == null ? m_handle.get() : m_handle.get(m_receiver);
+            } catch (Throwable t) {
+                return defaultValue;
+            }
+        }
+
+        public <T> Optional<T> as(Class<T> type) {
+            if (type == null || m_handle == null) return Optional.empty();
+
+            Object value = get(null);
+            if (!type.isInstance(value))
+                return Optional.empty();
+
+            return Optional.of(type.cast(value));
+        }
+
+        public boolean set(Object value) {
+            if (m_handle == null) return false;
+
+            try {
+                if (m_receiver == null) m_handle.set(value);
+                else m_handle.set(m_receiver, value);
+            } catch (Throwable t) {
+                Logger.once.warn("failed to set field value", m_handle, t);
+                return false;
+            }
+
+            return true;
+        }
+    }
+
+    private Reflect(Object obj) {
+        this.m_obj = obj;
     }
 
     /**
@@ -65,7 +118,7 @@ public final class Reflect {
      */
     public static Reflect on(Object obj) {
         if (obj instanceof String s) {
-            obj = Accessor.findClass(s);
+            obj = findClass(s);
         }
         return obj == null ? REFLECT_NULL : new Reflect(obj);
     }
@@ -85,44 +138,85 @@ public final class Reflect {
 
     public static Reflect on(String s, Flag... flags) {
         EnumSet<Flag> flagSet = toFlagSet(flags);
-        Class<?> cls = Accessor.findClass(s);
+        Class<?> cls = findClass(s);
         if (cls != null && matchesMod(cls.getModifiers(), flagSet)) {
             return new Reflect(cls);
         }
         return REFLECT_NULL;
     }
 
-    private static final class ClassInfo {
-        final MethodHandles.Lookup              lookup;
-        final ConcurrentHashMap<String, Object> varCache;
-        final ConcurrentHashMap<String, Object> methodCache;
-              List<Method>                      methods = null;
+    private static Class<?> findClass(String... classNames) {
+        if (classNames == null || classNames.length == 0) {
+            return null;
+        }
+        for (String className : classNames) {
+            if (!Utils.isBlank(className)) {
+                String normalized = Utils.toCanonicalName(className);
+                Class<?> cls = _name2class.computeIfAbsent(normalized, k -> findClassUncached(k));
+                if (cls != ClassNotFound.class) {
+                    return cls;
+                }
+            }
+        }
+        return null;
+    }
 
-        ClassInfo(Class<?> cls) throws IllegalAccessException {
-            lookup = MethodHandles.privateLookupIn(cls, MethodHandles.lookup());
-            varCache = new ConcurrentHashMap<>();
-            methodCache = new ConcurrentHashMap<>();
+    private static Class<?> findClassUncached(String className) {
+        try {
+            return Class.forName(className);
+        } catch (ClassNotFoundException | LinkageError e) {
+            return ClassNotFound.class;
         }
     }
 
-    private static final ConcurrentHashMap<Class<?>, ClassInfo> _cache = new ConcurrentHashMap<>();
+    private static final class ClassNotFound {}
+    private static final ClassInfo CLASS_NOT_FOUND                       = new ClassInfo(ClassNotFound.class);
+    private static final ConcurrentHashMap<Class<?>, ClassInfo> _cache   = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Class<?>> _name2class = new ConcurrentHashMap<>();
 
     public static void clearCaches() {
         _cache.clear();
+        _name2class.clear();
     }
 
-    public Reflect field(String fieldName) {
-        if (value == null || Utils.isBlank(fieldName))
-            return REFLECT_NULL;
-    
-        return new Reflect(Accessor.tryGet(value, fieldName, null));
-    }
+    private static final RField RFIELD_NULL = new RField(null, null);
 
-    public Reflect staticField(String fieldName) {
+    public RField field(String... fieldName) {
+        if (m_obj == null || Utils.isBlank(fieldName))
+            return RFIELD_NULL;
+
         Class<?> cls = getType();
-        if (cls == null || Utils.isBlank(fieldName)) return REFLECT_NULL;
+        if (cls == null) return RFIELD_NULL;
+
+        ClassInfo cinfo = getClassInfo(cls);
+        if (cinfo == null) return RFIELD_NULL;
     
-        return new Reflect(Accessor.tryGet(cls, fieldName, null));
+        for (String name : fieldName) {
+            if (Utils.isBlank(name)) continue;
+
+            Field f = cinfo.fields().get(name);
+            if (f == null) continue;
+
+            VarHandle vh = cinfo.getVarHandle(f);
+            if (vh != null) {
+                Object receiver = Modifier.isStatic(f.getModifiers()) ? null : m_obj;
+                return new RField(vh, receiver);
+            }
+        }
+        return RFIELD_NULL;
+    }
+
+    public RField staticField(String fieldName) {
+        Class<?> cls = getType();
+        if (cls == null || Utils.isBlank(fieldName)) return RFIELD_NULL;
+
+        ClassInfo cinfo = getClassInfo(cls);
+        if (cinfo == null) return RFIELD_NULL;
+
+        Field f = cinfo.fields().get(fieldName);
+        if (f == null || !Modifier.isStatic(f.getModifiers())) return RFIELD_NULL;
+    
+        return new RField(cinfo.getVarHandle(f), null);
     }
 
     @SuppressWarnings("unchecked")
@@ -155,19 +249,6 @@ public final class Reflect {
         return instance != null ? new Reflect(instance) : REFLECT_NULL;
     }
 
-    // expensive operation, should run once per class and cache the result
-    // should not return null
-    private static final List<Method> fetchMethods(Class<?> cls) {
-        List<Method> out = new ArrayList<>();
-        for (Class<?> c = cls; c != null && c != Object.class; c = c.getSuperclass()) {
-            for (Method m : c.getDeclaredMethods()) {
-                if (/*m.isSynthetic() ||*/ m.isBridge() || m.getDeclaringClass() == Object.class) continue;
-                out.add(m);
-            }
-        }
-        return out;
-    }
-
     public List<Method> declaredMethods(Flag... flags) {
         Flag[] flags2 =  new Flag[flags.length + 1];
         System.arraycopy(flags, 0, flags2, 0, flags.length);
@@ -189,13 +270,9 @@ public final class Reflect {
         ClassInfo cinfo = getClassInfo(cls);
         if (cinfo == null) return Collections.emptyList();
 
-        if (cinfo.methods == null) {
-            cinfo.methods = fetchMethods(cls);
-        }
-
         EnumSet<Flag> flagSet = toFlagSet(flags);
         List<Method> out = new ArrayList<>();
-        for (Method m : cinfo.methods) {
+        for (Method m : cinfo.methods()) {
             if (flagSet != null) {
                 if (!matchesMod(m.getModifiers(), flagSet)) continue;
                 if (flagSet.contains(Flag.DECLARED) && m.getDeclaringClass() != cls) continue;
@@ -209,20 +286,24 @@ public final class Reflect {
      * Returns all declared fields of the subject's class hierarchy (one per name, most-derived
      * wins) matching {@code flags}. Same flag semantics as {@link #methods(Flag...)}.
      */
-    public List<Field> fields(Flag... flags) {
+    public Map<String, Field> fields(Flag... flags) {
         Class<?> cls = getType();
-        if (cls == null) return Collections.emptyList();
+        if (cls == null) return Collections.emptyMap();
+
+        ClassInfo cinfo = getClassInfo(cls);
+        if (cinfo == null) return Collections.emptyMap();
 
         EnumSet<Flag> flagSet = toFlagSet(flags);
-        List<Field> out = new ArrayList<>();
-        for (Field f : Accessor.allFields(cls)) {
+        Map<String, Field> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Field> e : cinfo.fields().entrySet()) {
+            Field f = e.getValue();
             if (f.isSynthetic()) continue;
             if (flagSet != null) {
                 if (!matchesMod(f.getModifiers(), flagSet)) continue;
                 if (flagSet.contains(Flag.DECLARED) && f.getDeclaringClass() != cls) continue;
             }
 
-            out.add(f);
+            out.put(e.getKey(), f);
         }
         return out;
     }
@@ -259,20 +340,20 @@ public final class Reflect {
     }
 
     public Class<?> getType() {
-        if (value == null) return null;
-        return value instanceof Class<?> c ? c : value.getClass();
+        if (m_obj == null) return null;
+        return m_obj instanceof Class<?> c ? c : m_obj.getClass();
     }
 
     private ClassInfo getClassInfo(Class<?> cls) {
-        return _cache.computeIfAbsent(cls, c -> {
-                try {
-                    return new ClassInfo(c);
-                } catch (Exception e) {
-                    Logger.error("Failed to create ClassInfo for %s: %s", c, e);
-                    return null;
-                }
+        ClassInfo result = _cache.computeIfAbsent(cls, c -> {
+            try {
+                return new ClassInfo(c);
+            } catch (Exception e) {
+                Logger.once.error("Failed to create ClassInfo for %s: %s", c, e);
+                return CLASS_NOT_FOUND;
             }
-        );
+        });
+        return result == CLASS_NOT_FOUND ? null : result;
     }
 
     /** Shorthand for {@code field(name).as(type)}. */
@@ -281,22 +362,22 @@ public final class Reflect {
     // }
 
     public <T> Optional<T> as(Class<T> type) {
-        if (value == null || type == null || !type.isInstance(value))
+        if (m_obj == null || type == null || !type.isInstance(m_obj))
             return Optional.empty();
 
-        return Optional.of(type.cast(value));
+        return Optional.of(type.cast(m_obj));
     }
 
-    public Optional<Object> asObject() {
-        return Optional.ofNullable(value);
-    }
+    // public Optional<Object> asObject() {
+    //     return Optional.ofNullable(m_obj);
+    // }
 
     public Object orElse(Object defaultValue) {
-        return value != null ? value : defaultValue;
+        return m_obj != null ? m_obj : defaultValue;
     }
 
     public boolean isPresent() {
-        return value != null;
+        return m_obj != null;
     }
 
     // call it once and cache the result
@@ -409,6 +490,11 @@ public final class Reflect {
         return DEFAULTS.get(type);
     }
 
+    // public Object getFieldValue(String fieldName, Object defaultValue) {
+    //     if (m_obj == null || Utils.isBlank(fieldName)) return defaultValue;
+    //
+    // }
+
     // XXX returns implicit default value for primitives
     @SuppressWarnings("unchecked")
     public <T> T get(String fieldName, Class<T> type) {
@@ -422,7 +508,7 @@ public final class Reflect {
             return null;
         }
 
-        return (T) vh.get(value);
+        return (T) vh.get(m_obj);
     }
 
     // safe for primitives
@@ -433,6 +519,44 @@ public final class Reflect {
         if (vh == null)
             return defaultValue;
 
-        return (T) vh.get(value);
+        return (T) vh.get(m_obj);
+    }
+
+    public Object get(Field field, Object defaultValue) {
+        Class<?> cls = getType();
+        if (cls == null) return defaultValue;
+    
+        ClassInfo cinfo = getClassInfo(cls);
+        if (cinfo == null) return defaultValue;
+
+        VarHandle vh = cinfo.getVarHandle(field);
+        if (vh == null) return defaultValue;
+
+        return vh.get(m_obj);
+    }
+
+    public boolean set(String fieldName, Object value) {
+        Class<?> cls = getType();
+        if (cls == null) return false;
+
+        ClassInfo cinfo = getClassInfo(cls);
+        if (cinfo == null) return false;
+
+        Field f = cinfo.fields().get(fieldName);
+        if (f == null) return false;
+
+        VarHandle vh = cinfo.getVarHandle(f);
+        if (vh == null) return false;
+
+        Object receiver = Modifier.isStatic(f.getModifiers()) ? null : m_obj;
+
+        try {
+            if (receiver == null) vh.set(value);
+            else vh.set(receiver, value);
+            return true;
+        } catch (Throwable t) {
+            Logger.printStackTrace(t);
+            return false;
+        }
     }
 }

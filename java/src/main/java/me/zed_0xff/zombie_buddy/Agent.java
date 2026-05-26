@@ -6,11 +6,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.jar.JarFile;
 import java.util.concurrent.atomic.AtomicBoolean;
-import zombie.core.Core;
 
 import me.zed_0xff.zombie_buddy.frontend.ModApprovalFrontends;
+import zombie.core.Core;
 
 public class Agent {
     public static final Map<String, String> arguments = new HashMap<>();
@@ -147,7 +146,7 @@ public class Agent {
         Logger.debug("ZB     classloader: " + ZombieBuddy.class.getClassLoader());
 
         Loader.preloadMods();
-        Accessor.clearCaches();
+        Reflect.clearCaches();
     }
 
     public static boolean isExperimental() {

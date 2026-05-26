@@ -1,32 +1,37 @@
 package me.zed_0xff.zombie_buddy;
 
-import me.zed_0xff.zombie_buddy.frontend.ModApprovalFrontend;
-import me.zed_0xff.zombie_buddy.frontend.ModApprovalFrontends;
-
-import static me.zed_0xff.zombie_buddy.SteamWorkshop.SteamID64;
-import static me.zed_0xff.zombie_buddy.SteamWorkshop.WorkshopItemID;
-import static me.zed_0xff.zombie_buddy.ModFlags.*;
+import static me.zed_0xff.zombie_buddy.ModFlags.MF_ACTIVE;
+import static me.zed_0xff.zombie_buddy.ModFlags.MF_NONE;
+import static me.zed_0xff.zombie_buddy.ModFlags.MF_PERSIST;
+import static me.zed_0xff.zombie_buddy.ModFlags.MF_PRELOAD;
+import static me.zed_0xff.zombie_buddy.ModFlags.MF_SIGNED;
+import static me.zed_0xff.zombie_buddy.ModFlags.MF_TRUST_AUTHOR;
+import static me.zed_0xff.zombie_buddy.ModFlags.MF_VALID;
 
 import java.io.IOException;
-import java.lang.ClassLoader;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.Date;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.jar.JarFile;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.jar.JarFile;
 
 import org.lwjgl.glfw.GLFW;
+
 import org.lwjglx.opengl.Display;
+import me.zed_0xff.zombie_buddy.SteamWorkshop.SteamID64;
+import me.zed_0xff.zombie_buddy.SteamWorkshop.WorkshopItemID;
+import me.zed_0xff.zombie_buddy.frontend.ModApprovalFrontend;
+import me.zed_0xff.zombie_buddy.frontend.ModApprovalFrontends;
 import zombie.GameWindow;
 import zombie.gameStates.ChooseGameInfo;
 
@@ -627,7 +632,9 @@ public class Loader {
             if (mod == null) continue;
 
             if (isB42 == null) {
-                isB42 = Accessor.hasPublicMethod(mod, "getVersionDir") && Accessor.hasPublicMethod(mod, "getCommonDir");
+                Reflect r = Reflect.on(mod);
+                isB42 = (r.getMethodHandle(String.class, "getVersionDir") != null)
+                     && (r.getMethodHandle(String.class, "getCommonDir")  != null);
             }
 
             JavaModInfo jModInfo = isB42
@@ -1011,7 +1018,7 @@ public class Loader {
         } else {
             _known_mains.add(mainClassName);
 
-            Class<?> cls = Accessor.findClass(mainClassName);
+            Class<?> cls = Reflect.on(mainClassName).getType();
             Logger.info("trying to load " + mainClassName + ": " + cls);
             if (cls != null) {
                 try_call_main(cls, phase);

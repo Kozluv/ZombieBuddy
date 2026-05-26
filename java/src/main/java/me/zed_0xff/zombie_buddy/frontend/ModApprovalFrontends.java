@@ -122,7 +122,7 @@ public final class ModApprovalFrontends {
 
     /** Mirrors {@code zombie.network.GameServer#server} (dedicated JAR / {@code -Dserver=true}). */
     private static boolean gameServerDedicatedFlag() {
-        Object v = Reflect.on(GAME_SERVER_CLASS).staticField("server").orElse(Boolean.FALSE);
+        Object v = Reflect.on(GAME_SERVER_CLASS).staticField("server").get(Boolean.FALSE);
         return Boolean.TRUE.equals(v);
     }
 }

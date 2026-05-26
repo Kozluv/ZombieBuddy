@@ -582,16 +582,17 @@ final class PatchTransformer {
         if (busy != null && busy.equals(name)) {
             return findAlreadyLoadedClass(g_transformingLoader.get(), name);
         }
-        return Accessor.findClass(name);
+        return Reflect.on(name).getType();
     }
+
+    private static final MethodHandle mh_findLoadedClass = Reflect.on(ClassLoader.class).getMethodHandle(Class.class, new Class<?>[]{String.class}, "findLoadedClass");
 
     /** Returns the class if already loaded by {@code cl} without triggering a new class load. */
     private static Class<?> findAlreadyLoadedClass(ClassLoader cl, String name) {
         try {
-            java.lang.reflect.Method m = ClassLoader.class.getDeclaredMethod("findLoadedClass", String.class);
-            m.setAccessible(true);
-            return (Class<?>) m.invoke(cl, name);
-        } catch (Exception e) {
+            return (Class<?>) mh_findLoadedClass.invoke(cl, name);
+        } catch (Throwable t) {
+            Logger.error("findLoadedClass failed for " + name + ": " + t.getMessage());
             return null;
         }
     }

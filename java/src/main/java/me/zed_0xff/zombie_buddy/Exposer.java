@@ -48,7 +48,7 @@ public class Exposer {
     }
 
     static boolean hasGlobalLuaMethod(Class<?> cls) {
-        for (Method m : Accessor.allMethods(cls)) {
+        for (Method m : Reflect.on(cls).declaredMethods()) {
             LuaMethod ann = m.getAnnotation(LuaMethod.class);
             if (ann != null && ann.global()) {
                 return true;
@@ -131,7 +131,7 @@ public class Exposer {
     }
 
     public static boolean exposeClass(String className) {
-        Class<?> cls = Accessor.findClass(className);
+        Class<?> cls = Reflect.on(className).getType();
         if (cls == null) {
             Logger.warn("exposeClass(\"" + className + "\"): class not found");
             return false;
@@ -157,7 +157,7 @@ public class Exposer {
             Logger.error("exposeMethod(): className and methodName must be non-empty:", className, methodName);
             return;
         }
-        Class<?> cls = Accessor.findClass(className);
+        Class<?> cls = Reflect.on(className).getType();
         if (cls == null) {
             Logger.warn("exposeMethod(\"" + className + "\", \"" + methodName + "\"): class not found");
             return;

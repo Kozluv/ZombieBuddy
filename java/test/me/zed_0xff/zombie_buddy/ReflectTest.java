@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -37,8 +38,8 @@ public class ReflectTest {
         return methods.stream().map(Method::getName).collect(Collectors.toSet());
     }
 
-    private static Set<String> fieldNames(List<Field> fields) {
-        return fields.stream().map(Field::getName).collect(Collectors.toSet());
+    private static Set<String> fieldNames(Map<String, Field> fields) {
+        return fields.keySet();
     }
 
     // --- methods() ---

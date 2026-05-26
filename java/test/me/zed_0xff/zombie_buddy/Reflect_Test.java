@@ -14,12 +14,7 @@ class Reflect_Test {
         var r = Reflect.on(Patch.NO_EXCEPTION_DESC);
         assertThat(r.isPresent()).isTrue();
 
-        Set<String> fieldNames = Set.copyOf(
-            r.fields(Reflect.DECLARED)
-            .stream()
-            .map(m -> m.getName())
-            .toList()
-        );
+        Set<String> fieldNames = Set.copyOf(r.fields(Reflect.DECLARED).keySet());
         assertThat(fieldNames)
             .containsExactlyInAnyOrder("serialVersionUID", "DESCRIPTION");
     }

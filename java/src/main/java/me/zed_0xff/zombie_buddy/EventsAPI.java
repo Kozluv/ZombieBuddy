@@ -3,15 +3,11 @@ package me.zed_0xff.zombie_buddy;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import se.krka.kahlua.vm.JavaFunction;
+import se.krka.kahlua.vm.LuaClosure;
 import zombie.Lua.Event;
 import zombie.Lua.LuaEventManager;
 import zombie.Lua.LuaManager;
-
-import se.krka.kahlua.vm.JavaFunction;
-import se.krka.kahlua.vm.KahluaTable;
-import se.krka.kahlua.vm.LuaCallFrame;
-import se.krka.kahlua.vm.LuaClosure;
-import se.krka.kahlua.j2se.KahluaTableImpl;
 
 @Exposer.LuaClass(name = "ZombieBuddy.Events")
 public class EventsAPI {
@@ -35,7 +31,7 @@ public class EventsAPI {
 
         var tbl = LuaManager.platform.newTable();
         for (var event : eventList) {
-            tbl.rawset(event.name, Reflect.on(event).field("callbacks").orElse(null));
+            tbl.rawset(event.name, Reflect.on(event).field("callbacks").get(null));
         }
         return tbl;
     }

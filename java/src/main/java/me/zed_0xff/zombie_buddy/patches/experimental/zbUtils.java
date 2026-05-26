@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import me.zed_0xff.zombie_buddy.Accessor;
 import me.zed_0xff.zombie_buddy.Exposer;
 import me.zed_0xff.zombie_buddy.LuaUtils;
 import me.zed_0xff.zombie_buddy.Reflect;
@@ -210,7 +209,6 @@ public class zbUtils {
         return zbFields(obj, false);
     }
 
-    @SuppressWarnings({"deprecation", "removal"})
     @LuaMethod(name = "zbfields", global = true)
     public static KahluaTable zbFields(Object obj, Boolean bPrivate) {
         if (obj == null) {
@@ -220,32 +218,29 @@ public class zbUtils {
         KahluaTable result = LuaManager.platform.newTable();
         Class<?> cls = obj.getClass();
 
-        for (Field f : Reflect.on(cls).fields(includePrivate ? null : Reflect.PUBLIC)) {
-            result.rawset(f.getName(), Accessor.tryGet(obj, f, "[inaccessible]"));
+        Reflect r = Reflect.on(cls);
+        for (Field f : r.fields(includePrivate ? null : Reflect.PUBLIC).values()) {
+            result.rawset(f.getName(), r.get(f, "[inaccessible]"));
         }
 
         return result;
     }
 
-    @SuppressWarnings({"deprecation", "removal"})
     @LuaMethod(name = "zbget", global = true)
     public static Object zbGet(Object obj, String name) {
-        return Accessor.tryGet(obj, name, null);
+        return Reflect.on(obj).field(name).get(null);
     }
 
-    @SuppressWarnings({"deprecation", "removal"})
     @LuaMethod(name = "zbget", global = true)
     public static Object zbGet(Object obj, String name, Object defaultValue) {
-        return Accessor.tryGet(obj, name, defaultValue);
+        return Reflect.on(obj).field(name).get(defaultValue);
     }
 
-    @SuppressWarnings({"deprecation", "removal"})
     @LuaMethod(name = "zbset", global = true)
     public static boolean zbSet(Object obj, String name, Object value) {
-        return Accessor.trySet(obj, name, value);
+        return Reflect.on(obj).field(name).set(value);
     }
 
-    @SuppressWarnings({"deprecation", "removal"})
     @LuaMethod(name = "zbcall", global = true)
     public static Object zbCall(Object obj, String name, Object... args) throws Exception {
         if (obj == null || Utils.isBlank(name)) {

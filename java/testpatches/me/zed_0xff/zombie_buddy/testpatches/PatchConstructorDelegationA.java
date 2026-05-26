@@ -1,6 +1,6 @@
 package me.zed_0xff.zombie_buddy.testpatches;
 
-import me.zed_0xff.zombie_buddy.Accessor;
+import me.zed_0xff.zombie_buddy.Reflect;
 import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 /**
@@ -22,13 +22,12 @@ public class PatchConstructorDelegationA {
     {
         System.out.println("[ZB TEST] PatchConstructorDelegation.constructor called with value=" + value + ", name=" + name);
 
-        Accessor.trySet(self, "value", Integer.valueOf(value * 10));
-        Accessor.trySet(self, "name", name + " patched");
-
-        Accessor.trySet(self, "patchIntercepted", Boolean.TRUE);
+        Reflect r = Reflect.on(self);
+        r.set("value", value * 10);
+        r.set("name", name + " patched");
+        r.set("patchIntercepted", Boolean.TRUE);
         System.out.println("[ZB TEST] Setting patchIntercepted=true");
-        Object patchIntercepted = Accessor.tryGet(self, "patchIntercepted", Boolean.FALSE);
+        Object patchIntercepted = r.field("patchIntercepted").get(Boolean.FALSE);
         System.out.println("[ZB TEST] patchIntercepted is now: " + patchIntercepted);
     }
 }
-
