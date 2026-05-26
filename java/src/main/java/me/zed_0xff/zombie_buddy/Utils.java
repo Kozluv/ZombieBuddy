@@ -45,15 +45,16 @@ public final class Utils {
         return null;
     }
 
-    private static String _cacheDir;
+    private static String _cacheDir = null;
     public static String getCacheDir() {
         if (_cacheDir == null) {
-            _cacheDir = Reflect
-                .on("zombie.ZomboidFileSystem")
-                .getInstance()
-                .call("getCacheDir")
-                .as(String.class)
-                .orElse(null);
+            try {
+                _cacheDir = (String) Reflect
+                    .fastcall(() -> Reflect.on("zombie.ZomboidFileSystem").getInstanceFoldedMethodHandle(String.class, "getCacheDir"))
+                    .invokeExact();
+            } catch (Throwable t) {
+                Logger.printStackTrace(t);
+            }
         }
         return _cacheDir;
     }
@@ -80,17 +81,25 @@ public final class Utils {
     }
 
     public static boolean isClient() {
-        return Reflect.on("zombie.Lua.LuaManager.GlobalObject")
-            .call("isClient")
-            .as(Boolean.class)
-            .orElse(false);
+        try {
+            return (boolean) Reflect
+                .fastcall(() -> Reflect.on("zombie.Lua.LuaManager.GlobalObject").getMethodHandle(boolean.class, "isClient"))
+                .invokeExact();
+        } catch (Throwable t) {
+            Logger.printStackTrace(t);
+            return false;
+        }
     }
 
     public static boolean isServer() {
-        return Reflect.on("zombie.Lua.LuaManager.GlobalObject")
-            .call("isServer")
-            .as(Boolean.class)
-            .orElse(false);
+        try {
+            return (boolean) Reflect
+                .fastcall(() -> Reflect.on("zombie.Lua.LuaManager.GlobalObject").getMethodHandle(boolean.class, "isServer"))
+                .invokeExact();
+        } catch (Throwable t) {
+            Logger.printStackTrace(t);
+            return false;
+        }
     }
 
     public static boolean isMac() {
@@ -98,12 +107,16 @@ public final class Utils {
     }
 
     public static boolean isHiRes() {
-        return Reflect.on("zombie.core.Core")
-            .getInstance()
-            .call("getScreenWidth")
-            .as(Integer.class)
-            .map(width -> width > 2000)
-            .orElse(false);
+        try {
+            int width = (int) Reflect
+                .fastcall(() -> Reflect.on("zombie.core.Core").getInstanceFoldedMethodHandle(int.class, "getScreenWidth"))
+                .invokeExact();
+
+            return width > 2000;
+        } catch (Throwable t) {
+            Logger.printStackTrace(t);
+            return false;
+        }
     }
 
     public static boolean isBlank(Object obj) {

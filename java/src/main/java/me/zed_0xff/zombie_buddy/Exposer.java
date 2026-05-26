@@ -232,9 +232,8 @@ public class Exposer {
     private static void exposeMethodNow(Class<?> cls, String methodName) {
         var exposer    = LuaManager.exposer;
         var staticBase = LuaManager.env;
-        var methods    = Accessor.findMethodsByName(cls, methodName);
 
-        for (var method : methods) {
+        for (var method : Reflect.on(cls).declaredMethods()) {
             if (method.getName().equals(methodName)) {
                 try {
                     if (isStatic(method)) {

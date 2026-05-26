@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
  * Fluent reflection chain. Entry point is {@link #on(Object)}; strings are resolved as class
@@ -75,6 +76,19 @@ public final class Reflect {
             obj = Accessor.findClass(s);
         }
         return obj == null ? REFLECT_NULL : new Reflect(obj);
+    }
+
+    public interface MHResolver extends Supplier<MethodHandle> {}
+    private static final ConcurrentHashMap<MHResolver, MethodHandle> _mh_cache = new ConcurrentHashMap<>();
+    public static MethodHandle fastcall(MHResolver resolve) {
+        MethodHandle mh = _mh_cache.get(resolve);
+        if (mh != null) return mh;
+
+        mh = resolve.get();
+        if (mh != null) {
+            _mh_cache.put(resolve, mh);
+        }
+        return mh;
     }
 
     public static Reflect on(String s, Flag... flags) {
@@ -156,6 +170,13 @@ public final class Reflect {
             }
         }
         return out;
+    }
+
+    public List<Method> declaredMethods(Flag... flags) {
+        Flag[] flags2 =  new Flag[flags.length + 1];
+        System.arraycopy(flags, 0, flags2, 0, flags.length);
+        flags2[flags.length] = Flag.DECLARED;
+        return methods(flags2);
     }
 
     /**
@@ -317,15 +338,40 @@ public final class Reflect {
         return null;
     }
 
-    // call it once and cache the result
+    // "folded" is like "bound", but getInstance() is also called automatically
+    public MethodHandle getInstanceFoldedMethodHandle(Class<?> returnType, String... names) {
+        MethodHandle mhTarget = getMethodHandle(returnType, names);
+        if (mhTarget == null) return null;
+
+        MethodHandle mh_getInstance = getMethodHandle(getType(), "getInstance");
+        if (mh_getInstance == null) {
+            VarHandle vh_instance = getVarHandle(getType(), "instance");
+            if (vh_instance == null) return null;
+            mh_getInstance = vh_instance.toMethodHandle(VarHandle.AccessMode.GET);
+        }
+
+        return MethodHandles.foldArguments(mhTarget, mh_getInstance);
+    }
+
+    // no parameterTypes
+    public MethodHandle getMethodHandle(Class<?> returnType, String... names) {
+        MethodType mt = MethodType.methodType(returnType);
+        return getMethodHandle(mt, names);
+    }
+
     public MethodHandle getMethodHandle(Class<?> returnType, Class<?>[] parameterTypes, String... names) {
+        MethodType mt = MethodType.methodType(returnType, parameterTypes);
+        return getMethodHandle(mt, names);
+    }
+
+    // call it once and cache the result
+    public MethodHandle getMethodHandle(MethodType mt, String... names) {
         Class<?> cls = getType();
         if (cls == null) return null;
 
         ClassInfo cinfo = getClassInfo(cls);
         if (cinfo == null) return null;
 
-        MethodType mt = MethodType.methodType(returnType, parameterTypes);
         String mtKey = mt.toString();
         var methodCache = cinfo.methodCache;
         for (String methodName : names) {
