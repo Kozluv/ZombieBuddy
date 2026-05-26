@@ -299,36 +299,6 @@ public final class Accessor {
     }
 
     /**
-     * Finds all methods with the given name in {@code cls} and its superclasses.
-     * Includes overloads and overrides. Order: current class first, then superclass.
-     */
-    @Deprecated(since = "2026-05-01", forRemoval = true)
-    public static List<Method> findMethodsByName(Class<?> cls, String methodName) {
-        if (cls == null || Utils.isBlank(methodName)) {
-            return Collections.emptyList();
-        }
-        return getClassInfo(cls).methodsByName
-            .computeIfAbsent(methodName, k -> findMethodsByNameUncached(cls, k));
-    }
-
-    private static List<Method> findMethodsByNameUncached(Class<?> cls, String methodName) {
-        List<Method> out = new ArrayList<>();
-        for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
-            for (Method m : c.getDeclaredMethods()) {
-                if (methodName.equals(m.getName())) {
-                    out.add(m);
-                }
-            }
-        }
-        return out.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(out);
-    }
-
-    /** Finds a no-arg method by name in {@code cls} or any superclass. Returns null if not found. */
-    static Method findNoArgMethod(Class<?> cls, String methodName) {
-        return findExactMethod(cls, methodName, (Class<?>[]) null);
-    }
-
-    /**
      * Finds a method by name and parameter types in {@code cls} or any superclass.
      * Pass empty array or null for no-arg method. Results are cached per class.
      */
@@ -416,53 +386,5 @@ public final class Accessor {
         }
         m.setAccessible(true);
         return m.invoke(obj, args);
-    }
-
-    /**
-     * Invokes a method with the given name on {@code obj}, choosing an overload by argument count
-     * and compatibility. If {@code obj} is a String class name or a Class, calls a static method.
-     * Does not catch exceptions.
-     *
-     * @throws NoSuchMethodException        if no compatible overload is found
-     * @throws ReflectiveOperationException if setAccessible or invoke fails
-     */
-    @Deprecated(since = "2026-05-01", forRemoval = true)
-    public static Object callByName(Object obj, String methodName, Object... args) throws ReflectiveOperationException {
-        if (obj == null || Utils.isBlank(methodName)) {
-            throw new IllegalArgumentException("obj and methodName must be non-null and non-empty");
-        }
-        boolean staticCall = false;
-        Class<?> targetClass;
-        if (obj instanceof String className) {
-            targetClass = findClass(className);
-            if (targetClass == null) {
-                throw new ClassNotFoundException("class not found: " + className);
-            }
-            staticCall = true;
-        } else if (obj instanceof Class<?> c) {
-            targetClass = c;
-            staticCall = true;
-        } else {
-            targetClass = obj.getClass();
-        }
-        int nArgs = args == null ? 0 : args.length;
-        Object[] invokeArgs = args == null ? new Object[0] : args;
-        for (Method m : findMethodsByName(targetClass, methodName)) {
-            if (m.getParameterCount() != nArgs) {
-                continue;
-            }
-            if (staticCall && !Modifier.isStatic(m.getModifiers())) {
-                continue;
-            }
-            try {
-                m.setAccessible(true);
-                Object receiver = Modifier.isStatic(m.getModifiers()) ? null : obj;
-                return m.invoke(receiver, invokeArgs);
-            } catch (IllegalArgumentException e) {
-                // argument types don't match this overload, try next
-                continue;
-            }
-        }
-        throw new NoSuchMethodException("no compatible overload for " + methodName + " with " + nArgs + " argument(s)");
     }
 }

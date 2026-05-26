@@ -1,10 +1,16 @@
 package me.zed_0xff.zombie_buddy;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link Accessor} tryGet, trySet, findExactMethod, hasPublicMethod, and call.
@@ -286,40 +292,40 @@ public class AccessorTest {
 
     // --- Reflect ---
 
-    @Test
-    void query_staticField_call_as_returnsTypedOptional() {
-        assertEquals("hello", Reflect.on(Target.class)
-            .staticField("INSTANCE")
-            .call("getPublicString")
-            .as(String.class)
-            .orElseThrow());
-    }
-
-    @Test
-    void query_className_staticField_call_as_returnsTypedOptional() {
-        assertEquals("hello", Reflect.on(Target.class.getName())
-            .staticField("INSTANCE")
-            .call("getPublicString")
-            .as(String.class)
-            .orElseThrow());
-    }
-
-    @Test
-    void query_field_call_supportsChainingThroughObjects() {
-        assertEquals("child", Reflect.on(new Target())
-            .call("child")
-            .field("publicString")
-            .as(String.class)
-            .orElseThrow());
-    }
-
-    @Test
-    void query_call_supportsArguments() {
-        assertEquals("echo:value", Reflect.on(new Target())
-            .call("echo", "value")
-            .as(String.class)
-            .orElseThrow());
-    }
+    // @Test
+    // void query_staticField_call_as_returnsTypedOptional() {
+    //     assertEquals("hello", Reflect.on(Target.class)
+    //         .staticField("INSTANCE")
+    //         .call("getPublicString")
+    //         .as(String.class)
+    //         .orElseThrow());
+    // }
+    //
+    // @Test
+    // void query_className_staticField_call_as_returnsTypedOptional() {
+    //     assertEquals("hello", Reflect.on(Target.class.getName())
+    //         .staticField("INSTANCE")
+    //         .call("getPublicString")
+    //         .as(String.class)
+    //         .orElseThrow());
+    // }
+    //
+    // @Test
+    // void query_field_call_supportsChainingThroughObjects() {
+    //     assertEquals("child", Reflect.on(new Target())
+    //         .call("child")
+    //         .field("publicString")
+    //         .as(String.class)
+    //         .orElseThrow());
+    // }
+    //
+    // @Test
+    // void query_call_supportsArguments() {
+    //     assertEquals("echo:value", Reflect.on(new Target())
+    //         .call("echo", "value")
+    //         .as(String.class)
+    //         .orElseThrow());
+    // }
 
     @Test
     void query_getInstance_prefersStaticGetInstanceMethod() {
@@ -349,41 +355,41 @@ public class AccessorTest {
             .isPresent());
     }
 
-    @Test
-    void query_missingClass_returnsEmpty() {
-        assertFalse(Reflect.on("no.such.Class")
-            .staticField("INSTANCE")
-            .call("getPublicString")
-            .as(String.class)
-            .isPresent());
-    }
-
-    @Test
-    void query_missingField_returnsEmpty() {
-        assertFalse(Reflect.on(Target.class)
-            .staticField("missing")
-            .call("getPublicString")
-            .as(String.class)
-            .isPresent());
-    }
-
-    @Test
-    void query_missingMethod_returnsEmpty() {
-        assertFalse(Reflect.on(Target.class)
-            .staticField("INSTANCE")
-            .call("missing")
-            .as(String.class)
-            .isPresent());
-    }
-
-    @Test
-    void query_asWrongType_returnsEmpty() {
-        assertFalse(Reflect.on(Target.class)
-            .staticField("INSTANCE")
-            .call("getPublicString")
-            .as(Integer.class)
-            .isPresent());
-    }
+    // @Test
+    // void query_missingClass_returnsEmpty() {
+    //     assertFalse(Reflect.on("no.such.Class")
+    //         .staticField("INSTANCE")
+    //         .call("getPublicString")
+    //         .as(String.class)
+    //         .isPresent());
+    // }
+    //
+    // @Test
+    // void query_missingField_returnsEmpty() {
+    //     assertFalse(Reflect.on(Target.class)
+    //         .staticField("missing")
+    //         .call("getPublicString")
+    //         .as(String.class)
+    //         .isPresent());
+    // }
+    //
+    // @Test
+    // void query_missingMethod_returnsEmpty() {
+    //     assertFalse(Reflect.on(Target.class)
+    //         .staticField("INSTANCE")
+    //         .call("missing")
+    //         .as(String.class)
+    //         .isPresent());
+    // }
+    //
+    // @Test
+    // void query_asWrongType_returnsEmpty() {
+    //     assertFalse(Reflect.on(Target.class)
+    //         .staticField("INSTANCE")
+    //         .call("getPublicString")
+    //         .as(Integer.class)
+    //         .isPresent());
+    // }
 
     @Test
     void query_orElse_returnsDefaultWhenEmpty() {

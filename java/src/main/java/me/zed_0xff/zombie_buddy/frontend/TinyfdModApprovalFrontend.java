@@ -1,14 +1,16 @@
 package me.zed_0xff.zombie_buddy.frontend;
 
-import me.zed_0xff.zombie_buddy.*;
-
-import zombie.core.Core;
-import zombie.core.GameVersion;
-
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+
+import me.zed_0xff.zombie_buddy.JarBatchApprovalProtocol;
+import me.zed_0xff.zombie_buddy.Logger;
+import me.zed_0xff.zombie_buddy.Reflect;
+import me.zed_0xff.zombie_buddy.Utils;
+import zombie.core.Core;
+import zombie.core.GameVersion;
 
 /**
  * LWJGL {@code TinyFileDialogs} (works when the game JVM is {@code java.awt.headless=true}).
@@ -90,8 +92,8 @@ public final class TinyfdModApprovalFrontend implements ModApprovalFrontend {
      * Returns TRUE (Yes), FALSE (No), or null if the dialog could not be shown.
      */
     private static Boolean tinyfdYesNo(String msg) {
-        Class<?> dialogClass = Accessor.findClass("org.lwjgl.util.tinyfd.TinyFileDialogs");
-        if (dialogClass == null) {
+        Reflect r = Reflect.on("org.lwjgl.util.tinyfd.TinyFileDialogs");
+        if (!r.isPresent()) {
             if (Core.getInstance().getGameVersion().isGreaterThan(GameVersion.parse("42.14"))) {
                 Logger.error("tinyfdYesNo(): game version > 42.14 but TinyFileDialogs missing; returning null");
                 return null;
@@ -100,8 +102,18 @@ public final class TinyfdModApprovalFrontend implements ModApprovalFrontend {
             return Boolean.TRUE;
         }
         try {
-            Object result = Reflect.on(dialogClass).call("tinyfd_messageBox", DIALOG_TITLE, msg, "yesno", "warning", false).orElse(null);
-            return Boolean.TRUE.equals(result);
+            return (boolean) Reflect
+                .fastcall(() -> Reflect.on("org.lwjgl.util.tinyfd.TinyFileDialogs").getMethodHandle(
+                            boolean.class,
+                            new Class<?>[] {
+                                CharSequence.class,
+                                CharSequence.class,
+                                CharSequence.class,
+                                CharSequence.class,
+                                boolean.class
+                            },
+                            "tinyfd_messageBox"))
+                .invokeExact("tinyfd_messageBox", DIALOG_TITLE, msg, "yesno", "warning", false);
         } catch (Throwable t) {
             Logger.error("Could not show dialog: " + t);
             return null;

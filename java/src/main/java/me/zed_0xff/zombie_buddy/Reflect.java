@@ -125,31 +125,34 @@ public final class Reflect {
         return new Reflect(Accessor.tryGet(cls, fieldName, null));
     }
 
+    @SuppressWarnings("unchecked")
+    private static <T> T invokeUnchecked(MethodHandle mh, Object... args) {
+        try {
+            return (T) mh.invokeWithArguments(args);
+        } catch (Throwable t) {
+            Logger.printStackTrace(t);
+            return null;
+        }
+    }
+
     /** Tries {@code getInstance()} static method, then falls back to a static {@code instance} field. */
     public Reflect getInstance() {
         Class<?> cls = getType();
         if (cls == null) return REFLECT_NULL;
 
-        Method m = Accessor.findExactMethod(cls, "getInstance");
-        if (m != null && Modifier.isStatic(m.getModifiers())) {
-            try {
-                m.setAccessible(true);
-                Object instance = m.invoke(null);
-                if (instance != null)
-                    return new Reflect(instance);
-            } catch (ReflectiveOperationException | RuntimeException ignored) {}
+        Object instance = null;
+        MethodHandle mh = getMethodHandle(cls, "getInstance");
+        if (mh != null && mh.type().parameterCount() == 0) {
+            instance = invokeUnchecked(mh);
         }
-        return new Reflect(Accessor.tryGet(cls, "instance", null));
-    }
 
-    @Deprecated
-    public Reflect call(String methodName, Object... args) {
-        if (value == null || Utils.isBlank(methodName)) return REFLECT_NULL;
-        try {
-            return new Reflect(Accessor.callByName(value, methodName, args));
-        } catch (ReflectiveOperationException | IllegalArgumentException e) {
-            return REFLECT_NULL;
+        if (instance == null) {
+            VarHandle vh = getVarHandle(cls, "instance");
+            if (vh != null)
+                instance = vh.get();
         }
+
+        return instance != null ? new Reflect(instance) : REFLECT_NULL;
     }
 
     // expensive operation, should run once per class and cache the result

@@ -9,11 +9,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import me.zed_0xff.zombie_buddy.Accessor;
 import me.zed_0xff.zombie_buddy.Callbacks;
 import me.zed_0xff.zombie_buddy.Exposer;
 import me.zed_0xff.zombie_buddy.Loader;
 import me.zed_0xff.zombie_buddy.Logger;
+import me.zed_0xff.zombie_buddy.Reflect;
 import me.zed_0xff.zombie_buddy.Utils;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.Advice;
@@ -334,11 +334,11 @@ public class WatchesAPI {
 
     /** Returns null if class and method exist, else an error message. */
     private static String checkClassAndMethodExists(String className, String methodName) {
-        Class<?> cls = Accessor.findClass(className);
-        if (cls == null) {
+        Reflect r = Reflect.on(className);
+        if (!r.isPresent()) {
             return "class does not exist: " + className;
         }
-        if (Accessor.findMethodsByName(cls, methodName).isEmpty()) {
+        if (r.declaredMethods().stream().noneMatch(m -> m.getName().equals(methodName))) {
             return "method does not exist: " + className + "." + methodName;
         }
         return null;

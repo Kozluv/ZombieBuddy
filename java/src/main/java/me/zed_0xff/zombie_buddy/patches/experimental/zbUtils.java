@@ -9,24 +9,25 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import me.zed_0xff.zombie_buddy.*;
-
-import se.krka.kahlua.integration.annotations.LuaMethod;
+import me.zed_0xff.zombie_buddy.Accessor;
+import me.zed_0xff.zombie_buddy.Exposer;
+import me.zed_0xff.zombie_buddy.LuaUtils;
+import me.zed_0xff.zombie_buddy.Reflect;
+import me.zed_0xff.zombie_buddy.Utils;
+import me.zed_0xff.zombie_buddy.ZombieBuddy;
 import se.krka.kahlua.integration.LuaReturn;
+import se.krka.kahlua.integration.annotations.LuaMethod;
 import se.krka.kahlua.vm.JavaFunction;
 import se.krka.kahlua.vm.KahluaTable;
 import se.krka.kahlua.vm.LuaClosure;
 import zombie.Lua.LuaManager;
-import zombie.ZomboidFileSystem;
 
 public class zbUtils {
 
@@ -246,8 +247,16 @@ public class zbUtils {
 
     @SuppressWarnings({"deprecation", "removal"})
     @LuaMethod(name = "zbcall", global = true)
-    public static Object zbCall(Object obj, String name, Object... args) throws ReflectiveOperationException {
-        return Accessor.callByName(obj, name, args);
+    public static Object zbCall(Object obj, String name, Object... args) throws Exception {
+        if (obj == null || Utils.isBlank(name)) {
+            throw new IllegalArgumentException("object and method name must be provided");
+        }
+        for (Method m : Reflect.on(obj).methods()) {
+            if (m.getName().equals(name) && m.getParameterCount() == args.length) { // TODO: match parameter types?
+                return m.invoke(obj, args);
+            }
+        }
+        throw new IllegalArgumentException("no matching method found: " + name + " with " + args.length + " args");
     }
 
     /**

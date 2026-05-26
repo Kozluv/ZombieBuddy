@@ -242,7 +242,11 @@ public class Exposer {
                         if (container == null) {
                             // replicate LuaJavaClassExposer.exposeStatics() logic
                             String[] packageStructure = cls.getName().replaceAll("\\$", ".").split("\\.");
-                            container = Reflect.on(exposer).call("createTableStructure", staticBase, packageStructure).as(KahluaTable.class).orElse(null);
+                            // private KahluaTable createTableStructure(KahluaTable base, String[] structure)
+                            container = (KahluaTable) Reflect
+                                .fastcall(() -> Reflect.on(exposer).getMethodHandle(KahluaTable.class, new Class<?>[] {KahluaTable.class, String[].class}, "createTableStructure"))
+                                .invokeExact(staticBase, packageStructure);
+
                             if (container == null) {
                                 Logger.error("Failed to create table structure for static method exposure of " + cls.getName());
                                 continue;
