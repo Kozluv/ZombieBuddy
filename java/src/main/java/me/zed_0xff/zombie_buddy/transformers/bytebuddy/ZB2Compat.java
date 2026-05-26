@@ -21,7 +21,9 @@ public class ZB2Compat extends AbstractTransformer {
             public String map(String internalName) {
                 if (internalName.equals(OLD) || internalName.startsWith(OLD + "$")) {
                     setModified();
-                    return NEW + internalName.substring(OLD.length());
+                    String newName = NEW + internalName.substring(OLD.length());
+                    // Logger.debug(internalName, newName);
+                    return newName;
                 }
 
                 return internalName;

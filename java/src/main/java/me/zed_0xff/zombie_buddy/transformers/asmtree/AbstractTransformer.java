@@ -11,13 +11,21 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.ParameterNode;
 
+import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.Utils;
 import me.zed_0xff.zombie_buddy.transformers.ClassContext;
 import me.zed_0xff.zombie_buddy.transformers.Transformer;
 
 abstract class AbstractTransformer extends Transformer {
     private static final HashMap<String, Map<Integer, String>> _methodArgNamesCache = new HashMap<>();
+
+    static {
+        Logger.addFormatter( ClassNode.class,     o -> "<ClassNode "  + ((ClassNode)o).name  + ">" );
+        Logger.addFormatter( MethodNode.class,    o -> "<MethodNode " + ((MethodNode)o).name + ">" );
+        Logger.addFormatter( ParameterNode.class, o -> "<ParamNode "  + ((ParameterNode)o).name + ">" );
+    }
 
     protected static Map<Integer, String> getArgNames(MethodNode mn) {
         Type[] argTypes = Type.getArgumentTypes(mn.desc);

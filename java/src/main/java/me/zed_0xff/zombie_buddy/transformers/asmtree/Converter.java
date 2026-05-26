@@ -29,11 +29,13 @@ import me.zed_0xff.zombie_buddy.transformers.AnnElements;
  * ZombieBuddy annotations are left in place.
  */
 public class Converter extends AbstractTransformer {
+    private static final Logger.Instance _logger = Logger.get("Converter");
     private boolean m_isAdvice;
 
     @Override
     protected boolean transformNode(ClassNode cn) {
         Patch patch = m_ctx.getPatch();
+        _logger.debug("transformNode", cn, patch);
         if (patch == null) return false;
 
         m_isAdvice = patch.isAdvice();
@@ -41,7 +43,7 @@ public class Converter extends AbstractTransformer {
         boolean changed = convertAnns(cn, cn.visibleAnnotations);
 
         for (FieldNode fn : cn.fields) {
-            changed |= convertAnns(fn, fn.visibleAnnotations); // |= does not short-circuit
+            changed |= convertAnns(fn, fn.visibleAnnotations);
         }
 
         for (MethodNode mn : cn.methods) {
@@ -53,6 +55,8 @@ public class Converter extends AbstractTransformer {
     }
 
     private boolean convertParamAnns(MethodNode mn) {
+        _logger.debug("convertParamAnns", mn);
+
         if (Utils.isBlank(mn.visibleParameterAnnotations))
             return false;
         if (Utils.isBlank(mn.parameters))

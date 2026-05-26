@@ -15,9 +15,6 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.provider.Arguments;
 import org.objectweb.asm.tree.AnnotationNode;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.ParameterNode;
 
 import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.jardump.AsmDump;
@@ -38,9 +35,6 @@ public abstract class AbstractTest {
             String name = desc.substring(desc.lastIndexOf('/') + 1, desc.length() - 1);
             return "<AnnotationNode @" + name + ">";
         });
-        Logger.addFormatter( ClassNode.class,     o -> "<ClassNode "  + ((ClassNode)o).name  + ">" );
-        Logger.addFormatter( MethodNode.class,    o -> "<MethodNode " + ((MethodNode)o).name + ">" );
-        Logger.addFormatter( ParameterNode.class, o -> "<ParamNode "  + ((ParameterNode)o).name + ">" );
     }
 
     protected record TransformRun(byte[] bytes, List<String> dumps, boolean modified, String transformerNames) {}

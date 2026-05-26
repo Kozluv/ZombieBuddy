@@ -68,7 +68,7 @@ public class ClassContext {
     public Patch getPatch() {
         if (m_patch != null) return m_patch;
             
-        TypeDescription td = getOriginalTypeDesc();
+        TypeDescription td = getCurrentTypeDesc(); // getOriginalTypeDesc() won't see annotations converted by ZB2Compat
         while (td != null) {
             var p = td.getDeclaredAnnotations().ofType(Patch.class);
             if (p != null) {
