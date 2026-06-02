@@ -1083,7 +1083,7 @@ public class Loader {
         // only apply patches on the first phase that loads this package
         if (phases.size() == 1) {
             Exposer.exposeClassesFromPackage(modLoader, transformed.classes().keySet(), packageName);
-            PatchEngine.applyPatches(transformed.patches(), modLoader);
+            PatchEngine.applyPatches(transformed.patches(), modLoader, transformed);
         }
         return true;
     }

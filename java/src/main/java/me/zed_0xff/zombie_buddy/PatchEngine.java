@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 import me.zed_0xff.zombie_buddy.annotations.Patch;
+import me.zed_0xff.zombie_buddy.transformers.TransformedJar;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.MethodCall;
@@ -135,8 +136,9 @@ public final class PatchEngine {
      * Apply patches using ByteBuddy.
      * @param patchClassNames sorted @Patch class names from {@link me.zed_0xff.zombie_buddy.transformers.TransformedJar}
      * @param modLoader the class loader that defines the patch classes
+     * @param transformedJar transformed mod jar contents (required for MethodDelegation into foreign class loaders)
      */
-    public static void applyPatches(List<String> patchClassNames, ClassLoader modLoader) {
+    public static void applyPatches(List<String> patchClassNames, ClassLoader modLoader, TransformedJar transformedJar) {
         List<Class<?>> patches = new ArrayList<>();
         for (String patchClassName : patchClassNames) {
             try {
@@ -561,6 +563,10 @@ public final class PatchEngine {
                     }
                     
                     // Apply MethodDelegation patches (only one per method)
+                    if (!methodDelegations.isEmpty() && cl != null && cl != modLoader) {
+                        ModJarInjector.exposeJarInClassLoader(transformedJar, cl);
+                    }
+
                     for (var entry : methodDelegations.entrySet()) {
                         String methodName = entry.getKey();
                         Class<?> delegationClass = entry.getValue();

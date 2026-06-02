@@ -97,7 +97,8 @@ public class Exposer {
 
         // trigger class loading, to ensure class static initializers run
         try {
-            Class.forName(cls.getName(), true, Exposer.class.getClassLoader());
+            ClassLoader loader = cls.getClassLoader() != null ? cls.getClassLoader() : ClassLoader.getSystemClassLoader();
+            Class.forName(cls.getName(), true, loader);
         } catch (ClassNotFoundException e) {
             Logger.error("exposeClass: Failed to load class " + cls.getName() + ": " + e.getMessage());
         }

@@ -29,6 +29,35 @@ final class ModJarInjector {
         return new ByteArrayClassLoader.ChildFirst(parent, definitions, ByteArrayClassLoader.PersistenceHandler.MANIFEST);
     }
 
+    /** Define all mod jar classes in {@code targetLoader} when they live on another {@link ClassLoader}. MethodDelegation requires this. */
+    static void exposeJarInClassLoader(TransformedJar jar, ClassLoader targetLoader) {
+        if (jar == null || targetLoader == null || jar.classes().isEmpty()) {
+            return;
+        }
+
+        if (!ClassInjector.UsingUnsafe.isAvailable()) {
+            Logger.error("ClassInjector.UsingUnsafe not available; cannot expose mod jar classes to " + targetLoader);
+            return;
+        }
+
+        HashMap<String, byte[]> toInject = new HashMap<>();
+        for (var entry : jar.classes().entrySet()) {
+            String name = entry.getKey();
+            try {
+                targetLoader.loadClass(name);
+            } catch (ClassNotFoundException ignored) {
+                toInject.put(name, entry.getValue());
+            }
+        }
+
+        if (toInject.isEmpty()) {
+            return;
+        }
+
+        Map<String, Class<?>> injected = new ClassInjector.UsingUnsafe(targetLoader).injectRaw(toInject);
+        Logger.debug("Exposed " + injected.size() + " mod classes to " + targetLoader);
+    }
+
     /** Define {@code patchClass} in {@code targetLoader} when it lives on a mod {@link ClassLoader}. MethodDelegation requires this. */
     static Class<?> resolveInClassLoader(Class<?> patchClass, ClassLoader targetLoader) {
         if (targetLoader == null || patchClass.getClassLoader() == targetLoader) {
