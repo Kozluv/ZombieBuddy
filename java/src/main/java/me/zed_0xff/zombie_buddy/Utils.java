@@ -83,7 +83,7 @@ public final class Utils {
     public static boolean isClient() {
         try {
             return (boolean) Reflect
-                .fastcall(() -> Reflect.on("zombie.Lua.LuaManager.GlobalObject").getMethodHandle(boolean.class, "isClient"))
+                .fastcall(() -> Reflect.on("zombie.Lua.LuaManager$GlobalObject").getMethodHandle(boolean.class, "isClient"))
                 .invokeExact();
         } catch (Throwable t) {
             Logger.printStackTrace(t);
@@ -94,7 +94,7 @@ public final class Utils {
     public static boolean isServer() {
         try {
             return (boolean) Reflect
-                .fastcall(() -> Reflect.on("zombie.Lua.LuaManager.GlobalObject").getMethodHandle(boolean.class, "isServer"))
+                .fastcall(() -> Reflect.on("zombie.Lua.LuaManager$GlobalObject").getMethodHandle(boolean.class, "isServer"))
                 .invokeExact();
         } catch (Throwable t) {
             Logger.printStackTrace(t);
