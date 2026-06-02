@@ -194,7 +194,7 @@ public @interface Patch {
                 } else if (names.size() == 1) {
                     name = names.get(0);
                 } else {
-                    Logger.warn("Invalid @Patch.Field annotation: exactly one field name must be specified in 'name' element", src, names);
+                    Logger.warn("Invalid @Patch.Field annotation: exactly one field name must be specified in 'name' element", src, names, ctx.className());
                     return null;
                 }
                 els.put("value", name);

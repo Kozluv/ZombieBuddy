@@ -146,7 +146,7 @@ public final class Pipeline {
             if (result.modified() && result.bytes() != null) {
                 rewritten = result.bytes();
 
-                if (Logger.getLevel() >= Logger.TRACE2 || classCtx.isDebug()) {
+                if (Logger.getLevel() >= Logger.TRACE || classCtx.isDebug()) {
                     AsmDump dumper = new AsmDump(jctx);
                     System.err.println(t.getClass().getSimpleName() + ":");
                     System.err.println(CLIUtil.indent(dumper.dumpClass(rewritten)));
