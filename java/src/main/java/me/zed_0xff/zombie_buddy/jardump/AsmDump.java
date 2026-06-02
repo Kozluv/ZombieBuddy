@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import me.zed_0xff.zombie_buddy.CLIUtil;
 import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.Utils;
 import me.zed_0xff.zombie_buddy.annotations.Internal;
@@ -46,9 +47,14 @@ public class AsmDump extends CLIUtil {
 
     private static final int ASM_API = Opcodes.ASM9;
     private final JarContext m_ctx;
+    private boolean m_simpleNames = true;
 
     public AsmDump(JarContext ctx) {
         m_ctx = ctx;
+    }
+
+    public void setSimpleNames(boolean simpleNames) {
+        m_simpleNames = simpleNames;
     }
 
     // "Ljava/util/regex/Pattern;" -> "java.util.regex.Pattern"
@@ -56,8 +62,8 @@ public class AsmDump extends CLIUtil {
         return Type.getType(desc).getClassName();
     }
 
-    static String annotationName(String desc) {
-        return "@" + simpleName(desc);
+    String annotationName(String desc) {
+        return "@" + (m_simpleNames ? simpleName(desc) : desc);
     }
 
     // "Ljava/util/regex/Pattern;" -> "Pattern"
@@ -258,7 +264,11 @@ public class AsmDump extends CLIUtil {
         boolean valid = !isDeprecated(desc) && (
             desc.startsWith(Internal.ANN_PREFIX) || validateAnnotation(desc, values, unkMembers)
         );
-        int rowColor = valid ? (desc.contains("bytebuddy") ? BB_ANN_COLOR : ANN_COLOR) : RED;
+        int rowColor = valid
+            ? (desc.contains("bytebuddy")
+                    ? (desc.startsWith("Lnet/bytebuddy/implementation/bind/annotation") ? BB_BIND_ANN_COLOR : BB_ANN_COLOR)
+                    : ANN_COLOR) 
+            : RED;
 
         if (!values.isEmpty()) {
             sb.append("(");
@@ -382,7 +392,7 @@ public class AsmDump extends CLIUtil {
         };
     }
 
-    public String dump(byte[] classBytes) {
+    public String dumpClass(byte[] classBytes) {
         var allParams = AbstractTransformer.collectParamNames(classBytes);
 
         StringBuilder sb = new StringBuilder();

@@ -2,7 +2,6 @@ package me.zed_0xff.zombie_buddy;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,9 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
-import io.github.classgraph.ScanResult;
 import me.zed_0xff.zombie_buddy.annotations.Patch;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
@@ -136,14 +132,23 @@ public final class PatchEngine {
     }
 
     /**
-     * Apply patches from a package using ByteBuddy.
-     * @param packageName the package containing @Patch classes
-     * @param modLoader the class loader for the mod (null for system loader)
+     * Apply patches using ByteBuddy.
+     * @param patchClassNames sorted @Patch class names from {@link me.zed_0xff.zombie_buddy.transformers.TransformedJar}
+     * @param modLoader the class loader that defines the patch classes
      */
-    public static void applyPatches(String packageName, ClassLoader modLoader) {
-        List<Class<?>> patches = collectPatches(packageName, modLoader);
+    public static void applyPatches(List<String> patchClassNames, ClassLoader modLoader) {
+        List<Class<?>> patches = new ArrayList<>();
+        for (String patchClassName : patchClassNames) {
+            try {
+                Class<?> patchClass = modLoader.loadClass(patchClassName);
+                Logger.info("Found patch class: " + patchClass.getName());
+                patches.add(patchClass);
+            } catch (ClassNotFoundException e) {
+                Logger.error("Error loading patch class " + patchClassName + ": " + e.getMessage());
+            }
+        }
         if (patches.isEmpty()) {
-            Logger.info("no patches in package " + packageName);
+            Logger.info("no patches to apply");
             return;
         }
 
@@ -309,16 +314,8 @@ public final class PatchEngine {
                             Patch patchAnn = adviceClass.getAnnotation(Patch.class);
                             boolean strictMatch = patchAnn != null && patchAnn.strictMatch();
                             
-                            // Transform patch class to replace Patch.* annotations with ByteBuddy's
-                            Class<?> transformedClass;
-                            try {
-                                transformedClass = PatchTransformer.transformPatch(adviceClass, td, Loader.g_verbosity, false);
-                                if (transformedClass == null) continue;
-                            } catch (Exception e) {
-                                Logger.error("ERROR: Failed to transform patch class " + adviceClass.getName() + ": " + e.getMessage());
-                                Logger.printStackTrace(e);
-                                continue;
-                            }
+                            Class<?> patchClass = adviceClass;
+                            if (PatchTransformer.preparePatch(adviceClass, td) == null) continue;
                             
                             // KISS approach: Simple and predictable method matching
                             var methodMatcher = SyntaxSugar.methodMatcher(methodName);
@@ -335,7 +332,7 @@ public final class PatchEngine {
                             // Track all inferred signatures to detect multiple methods with different signatures
                             java.util.Set<List<Class<?>>> allInferredSignatures = new java.util.HashSet<>();
                             
-                            for (Method adviceMethod : transformedClass.getDeclaredMethods()) {
+                            for (Method adviceMethod : patchClass.getDeclaredMethods()) {
                                 // Check if this method has advice annotations
                                 if (!hasAnnotation(adviceMethod, ADVICE_ANNOTATION_TYPES)) continue;
                                 
@@ -552,7 +549,7 @@ public final class PatchEngine {
                             }
                             
                             try {
-                                result = result.visit(Advice.to(transformedClass).on(methodMatcher));
+                                result = result.visit(Advice.to(patchClass).on(methodMatcher));
                                 Logger.debug("Applied advice to " + className + "." + methodName);
                             } catch (Exception e) {
                                 Logger.error("ERROR: Failed to apply advice to " + className + "." + methodName + ": " + e.getMessage());
@@ -567,18 +564,17 @@ public final class PatchEngine {
                     for (var entry : methodDelegations.entrySet()) {
                         String methodName = entry.getKey();
                         Class<?> delegationClass = entry.getValue();
-                        
-                        // Transform the delegation class to convert Patch.* annotations to ByteBuddy annotations
-                        Class<?> transformedDelegationClass = PatchTransformer.transformPatch(delegationClass, td, Loader.g_verbosity, true);
-                        if (transformedDelegationClass == null) continue;
-                        
+
+                        Class<?> patchClass = ModJarInjector.resolveInClassLoader(delegationClass, cl);
+                        if (PatchTransformer.preparePatch(patchClass, td) == null) continue;
+
                         Logger.info("patching " + className + "." + methodName + " with delegation");
                         
                         // Special handling for constructors: always use Object's constructor when overriding
                         if (methodName.equals("<init>")) {
                             try {
                                 // Infer constructor signature from delegation method's @Argument annotations
-                                Method delegationMethod = findMethodWithAnnotation(transformedDelegationClass, RuntimeType.class);
+                                Method delegationMethod = findMethodWithAnnotation(patchClass, RuntimeType.class);
                                 List<Class<?>> inferredConstructorSignature = null;
                                 if (delegationMethod != null) {
                                     inferredConstructorSignature = inferSignatureFromMethod(delegationMethod);
@@ -601,21 +597,21 @@ public final class PatchEngine {
                                 result = result
                                     .constructor(constructorMatcher)
                                     .intercept(MethodCall.invoke(objectConstructor)
-                                        .andThen(MethodDelegation.to(transformedDelegationClass)));
-                            } catch (Exception e) {
-                                Logger.error("ERROR: Could not set up constructor delegation: " + e.getMessage());
+                                        .andThen(MethodDelegation.to(patchClass)));
+                            } catch (Throwable t) {
+                                Logger.error("ERROR: Could not set up constructor delegation: " + t.getMessage());
                                 if (Loader.g_verbosity > 0) {
-                                    Logger.printStackTrace(e);
+                                    Logger.printStackTrace(t);
                                 }
                                 // Fallback to SuperMethodCall
                                 result = result
                                     .constructor(ElementMatchers.any())
-                                    .intercept(SuperMethodCall.INSTANCE.andThen(MethodDelegation.to(transformedDelegationClass)));
+                                    .intercept(SuperMethodCall.INSTANCE.andThen(MethodDelegation.to(patchClass)));
                             }
                         } else {
-                        result = result
-                            .method(SyntaxSugar.methodMatcher(methodName))
-                            .intercept(MethodDelegation.to(transformedDelegationClass));
+                            result = result
+                                .method(SyntaxSugar.methodMatcher(methodName))
+                                .intercept(MethodDelegation.to(patchClass));
                         }
                     }
                     
@@ -664,76 +660,5 @@ public final class PatchEngine {
                 Logger.printStackTrace(e);
             }
         }
-    }
-
-    /**
-     * Collect @Patch classes and register @LuaClass/@LuaMethod classes from a package.
-     */
-    public static List<Class<?>> collectPatches(String packageName, ClassLoader modLoader) {
-        List<Class<?>> patches = new ArrayList<>();
-
-        var classGraph = new ClassGraph()
-                .enableAllInfo()
-                .acceptPackages(packageName);
-
-        if (modLoader != null) {
-            classGraph = classGraph.overrideClassLoaders(modLoader);
-        } else {
-            ArrayList<Path> jarPaths = new ArrayList<>();
-            Path currentJar = Utils.getCurrentJarPath();
-            if (currentJar != null) {
-                jarPaths.add(currentJar);
-            }
-            if (!Loader.g_known_jars.isEmpty()) {
-                for (Path jarPath : Loader.g_known_jars) {
-                    if (!jarPaths.contains(jarPath)) {
-                        jarPaths.add(jarPath);
-                    }
-                }
-            }
-            if (!jarPaths.isEmpty()) {
-                classGraph = classGraph.overrideClasspath(jarPaths.toArray());
-            }
-        }
-
-        try (ScanResult scanResult = classGraph.scan()) {
-            int totalClassesScanned = scanResult.getAllClasses().size();
-            Logger.info("Scanned " + totalClassesScanned + " classes in package " + packageName);
-
-            for (ClassInfo classInfo : scanResult.getClassesWithAnnotation(Patch.class.getName())) {
-                try {
-                    Class<?> patchClass = classInfo.loadClass();
-                    String classPackage = patchClass.getPackage() != null ? patchClass.getPackage().getName() : "";
-                    if (!classPackage.equals(packageName)) {
-                        continue;
-                    }
-                    Logger.info("Found patch class: " + patchClass.getName());
-                    patches.add(patchClass);
-                } catch (Exception e) {
-                    Logger.error("Error loading patch class " + classInfo.getName() + ": " + e.getMessage());
-                    Logger.printStackTrace(e);
-                }
-            }
-
-            Exposer.exposeAnnotatedClasses(scanResult, packageName);
-
-            for (ClassInfo classInfo : scanResult.getAllClasses()) {
-                if (!classInfo.getPackageName().equals(packageName)) {
-                    continue;
-                }
-                try {
-                    Class<?> cls = classInfo.loadClass();
-                    if (Exposer.hasGlobalLuaMethod(cls)) {
-                        Exposer.addClassWithGlobalLuaMethod(cls);
-                    }
-                } catch (Throwable t) {
-                    // skip
-                }
-            }
-        } catch (Exception e) {
-            Logger.printStackTrace(e);
-        }
-
-        return patches;
     }
 }

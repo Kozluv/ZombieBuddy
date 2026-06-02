@@ -24,6 +24,7 @@ public class Logger {
     private static final PrintStream _out = System.out;
     private static final PrintStream _err = System.err;
 
+    public static final int TRACE2 = 3;
     public static final int TRACE =  2;
     public static final int DEBUG =  1;
     public static final int INFO  =  0;
@@ -76,8 +77,8 @@ public class Logger {
             return new Instance(m_level, m_maxLineLen, newTags);
         }
 
-        public void log(int level, String message, boolean bOnce, Object... args) {
-            if (m_level < level) return;
+        public boolean log(int level, String message, boolean bOnce, Object... args) {
+            if (m_level < level) return false;
 
             if (message.length() > m_maxLineLen) {
                 message = message.substring(0, m_maxLineLen - 3) + "...";
@@ -85,7 +86,7 @@ public class Logger {
                 message += " " + formatArgs(args, 0, m_maxLineLen - message.length() - 1);
             }
 
-            if (bOnce && !m_dedup.add(message)) return;
+            if (bOnce && !m_dedup.add(message)) return false;
 
             String lp = switch (level) {
                 case TRACE -> "[t]";
@@ -95,6 +96,7 @@ public class Logger {
                 default    -> "";
             };
             msg(level <= WARN ? STDERR : STDOUT, lp, m_tagStr + message);
+            return true;
         }
 
         public void printStackTrace(Throwable t) {
@@ -102,11 +104,11 @@ public class Logger {
         }
 
         public class Once {
-            public void trace(String message, Object... args) { log(TRACE, message, true, args); }
-            public void debug(String message, Object... args) { log(DEBUG, message, true, args); }
-            public void info( String message, Object... args) { log(INFO,  message, true, args); }
-            public void warn( String message, Object... args) { log(WARN,  message, true, args); }
-            public void error(String message, Object... args) { log(ERROR, message, true, args); }
+            public boolean trace(String message, Object... args) {  return log(TRACE, message, true, args); }
+            public boolean debug(String message, Object... args) {  return log(DEBUG, message, true, args); }
+            public boolean info( String message, Object... args) {  return log(INFO,  message, true, args); }
+            public boolean warn( String message, Object... args) {  return log(WARN,  message, true, args); }
+            public boolean error(String message, Object... args) {  return log(ERROR, message, true, args); }
         }
 
         public final Once once = new Once();
@@ -157,6 +159,7 @@ public class Logger {
 
     // intentionally package-private; mods shouldl use Instance's public setLevel
     static void setLevel(int level) { DEFAULT.setLevel(level); }
+    public static int getLevel() { return DEFAULT.m_level; }
 
     public static void printStackTrace(Throwable t) {
         printStackTrace(t, -1);
@@ -197,6 +200,10 @@ public class Logger {
             .collect(Collectors.joining(", ", "[", "]"));
     }
 
+    private static final Map<String, String> REPLACE_PREFIXES = Map.of(
+        "@me.zed_0xff.zombie_buddy.annotations.", "@"
+    );
+
     /** Format an object for logging: strings quoted, arrays expanded, length capped. */
     private static final LuaJSON _luaJSON = new LuaJSON(5, MAX_ARG_LEN, LuaJSON.Flags.STRIP_QUOTES, LuaJSON.Flags.ADD_SPACE_AFTER_COMMA);
     public static String formatArg(Object o) {
@@ -220,6 +227,14 @@ public class Logger {
         if (LuaJSON.canSerialize(o)) return _luaJSON.toJson(o);
 
         String s = o.toString();
+
+        for (var entry : REPLACE_PREFIXES.entrySet()) {
+            if (s.startsWith(entry.getKey())) {
+                s = s.replace(entry.getKey(), entry.getValue());
+                break;
+            }
+        }
+
         if (s.length() > MAX_ARG_LEN) s = s.substring(0, MAX_ARG_LEN - 3) + "...";
         if (o instanceof String) return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
         return s;

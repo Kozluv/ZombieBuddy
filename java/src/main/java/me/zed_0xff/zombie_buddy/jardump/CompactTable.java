@@ -1,5 +1,6 @@
 package me.zed_0xff.zombie_buddy.jardump;
 
+import me.zed_0xff.zombie_buddy.CLIUtil;
 import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.Utils;
 

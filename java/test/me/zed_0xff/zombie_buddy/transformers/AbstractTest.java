@@ -1,9 +1,9 @@
 package me.zed_0xff.zombie_buddy.transformers;
 
-import static me.zed_0xff.zombie_buddy.jardump.CLIUtil.BRIGHT;
-import static me.zed_0xff.zombie_buddy.jardump.CLIUtil.CYAN;
-import static me.zed_0xff.zombie_buddy.jardump.CLIUtil.RED;
-import static me.zed_0xff.zombie_buddy.jardump.CLIUtil.colorize;
+import static me.zed_0xff.zombie_buddy.CLIUtil.BRIGHT;
+import static me.zed_0xff.zombie_buddy.CLIUtil.CYAN;
+import static me.zed_0xff.zombie_buddy.CLIUtil.RED;
+import static me.zed_0xff.zombie_buddy.CLIUtil.colorize;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -12,9 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.provider.Arguments;
-import org.objectweb.asm.tree.AnnotationNode;
 
 import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.jardump.AsmDump;
@@ -26,16 +24,6 @@ public abstract class AbstractTest {
     protected static final List<List<Class<? extends Transformer>>> DEFAULT_TRANSFORMERS = List.of(
         List.of(Resolver.class, Converter.class)
     );
-
-    @BeforeAll
-    public static void setup() {
-        Logger.addFormatter( AnnotationNode.class, o -> {
-            AnnotationNode ann = (AnnotationNode)o;
-            String desc = ann.desc;
-            String name = desc.substring(desc.lastIndexOf('/') + 1, desc.length() - 1);
-            return "<AnnotationNode @" + name + ">";
-        });
-    }
 
     protected record TransformRun(byte[] bytes, List<String> dumps, boolean modified, String transformerNames) {}
 
@@ -116,8 +104,8 @@ public abstract class AbstractTest {
         private byte[] m_bytes;
 
         public TestClassContext(Class<?> cls) throws IOException {
-            super(cls.getName(), JarContext.forClass(cls.getName(), getClassBytes(cls)));
-            m_bytes = getClassBytes(cls);
+            super(cls.getName(), JarContext.forClass(cls.getName(), AbstractTest.getClassBytes(cls)));
+            m_bytes = AbstractTest.getClassBytes(cls);
         }
 
         public byte[] getBytes() { return m_bytes; }
@@ -133,7 +121,8 @@ public abstract class AbstractTest {
 
         public String dumpClass(byte[] bytes) {
             AsmDump dumper = new AsmDump(jarContext());
-            return dumper.dump(bytes);
+            dumper.setSimpleNames(false);
+            return dumper.dumpClass(bytes);
         }
     }
 }

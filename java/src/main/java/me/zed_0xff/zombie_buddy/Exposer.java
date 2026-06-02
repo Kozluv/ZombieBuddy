@@ -7,10 +7,15 @@ import java.lang.annotation.Target;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 import se.krka.kahlua.integration.annotations.LuaMethod;
 import se.krka.kahlua.vm.KahluaTable;
@@ -307,38 +312,57 @@ public class Exposer {
     }
 
     static void exposeAnnotatedClasses(String packageName) {
-        try (var scanResult = new io.github.classgraph.ClassGraph()
-                .acceptPackages(packageName)
-                .enableAnnotationInfo()
-                .scan()) {
-            exposeAnnotatedClasses(scanResult, packageName);
+        Path jarPath = Utils.getCurrentJarPath();
+        if (jarPath == null) {
+            Logger.error("exposeAnnotatedClasses: current jar path unknown");
+            return;
+        }
+
+        String pkgPath = packageName.replace('.', '/') + '/';
+        try (JarFile jar = new JarFile(jarPath.toFile(), false)) {
+            for (Enumeration<JarEntry> en = jar.entries(); en.hasMoreElements(); ) {
+                JarEntry entry = en.nextElement();
+                String name = entry.getName();
+                if (!name.endsWith(".class") || !name.startsWith(pkgPath) || entry.isDirectory()) {
+                    continue;
+                }
+
+                String className = name.substring(0, name.length() - 6).replace('/', '.');
+                exposeClassIfAnnotated(className, packageName, Exposer.class.getClassLoader());
+            }
+        } catch (Exception e) {
+            Logger.error("exposeAnnotatedClasses: " + e.getMessage());
+            Logger.printStackTrace(e);
         }
     }
 
-    static void exposeAnnotatedClasses(io.github.classgraph.ScanResult scanResult, String packageName) {
-        for (var classInfo : scanResult.getClassesWithAnnotation(LuaClass.class.getName())) {
-            Logger.debug("Found @LuaClass: " + classInfo.getName());
-
-            if (Utils.isBlank(packageName) || !classInfo.getPackageName().equals(packageName)) {
-                if (
-                        !"me.zed_0xff.zombie_buddy.patches".equals(packageName) &&
-                        !"me.zed_0xff.zombie_buddy.patches.experimental".equals(packageName)
-                ) {
-                    Logger.warn("Class " + classInfo.getName() + " is annotated with @LuaClass but is not in the exact package " + packageName + ", skipping exposure");
-                }
+    static void exposeClassesFromPackage(ClassLoader loader, Collection<String> classNames, String packageName) {
+        for (String className : classNames) {
+            if (!className.startsWith(packageName + ".")) {
                 continue;
             }
-            try {
-                Class<?> cls = classInfo.loadClass();
-                LuaClass ann = cls.getAnnotation(LuaClass.class);
-                if (ann == null) {
-                    Logger.error("Class " + classInfo.getName() + " is annotated with @LuaClass but annotation is null, skipping");
-                    continue;
-                }
-                exposeClass(cls, ann.name());
-            } catch (Exception e) {
-                Logger.error("Error exposing Lua class " + classInfo.getName() + ": " + e.getMessage());
+
+            exposeClassIfAnnotated(className, packageName, loader);
+        }
+    }
+
+    private static void exposeClassIfAnnotated(String className, String packageName, ClassLoader loader) {
+        try {
+            Class<?> cls = loader.loadClass(className);
+            String clsPackage = cls.getPackage() != null ? cls.getPackage().getName() : "";
+            if (!clsPackage.equals(packageName)) {
+                return;
             }
+
+            LuaClass ann = cls.getAnnotation(LuaClass.class);
+            if (ann != null) {
+                exposeClass(cls, ann.name());
+            }
+            if (hasGlobalLuaMethod(cls)) {
+                addClassWithGlobalLuaMethod(cls);
+            }
+        } catch (Throwable t) {
+            Logger.debug("exposeClassIfAnnotated(" + className + "): " + t.getMessage());
         }
     }
 }

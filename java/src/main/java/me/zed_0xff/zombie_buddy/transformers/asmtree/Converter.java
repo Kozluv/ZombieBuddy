@@ -19,6 +19,7 @@ import me.zed_0xff.zombie_buddy.annotations.Internal;
 import me.zed_0xff.zombie_buddy.annotations.Internal.AnnConverter;
 import me.zed_0xff.zombie_buddy.annotations.Internal.Meta;
 import me.zed_0xff.zombie_buddy.annotations.Patch;
+import me.zed_0xff.zombie_buddy.jardump.AsmDump;
 import me.zed_0xff.zombie_buddy.transformers.AnnCache;
 import me.zed_0xff.zombie_buddy.transformers.AnnCache.AnnInfo;
 import me.zed_0xff.zombie_buddy.transformers.AnnElements;
@@ -96,11 +97,24 @@ public class Converter extends AbstractTransformer {
 
             var translated = translated(node, ann, ai);
             if (translated == null) continue;
+            if (hasAnnotationDesc(list, translated.desc) || hasAnnotationDesc(toAdd, translated.desc)) {
+                continue;
+            }
 
             toAdd.add(translated);
         }
         list.addAll(toAdd);
         return !toAdd.isEmpty();
+    }
+
+    private static boolean hasAnnotationDesc(List<AnnotationNode> list, String desc) {
+        for (AnnotationNode ann : list) {
+            if (desc.equals(ann.desc)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // {"name"} => "name"
@@ -123,8 +137,11 @@ public class Converter extends AbstractTransformer {
             try {
                 return conv.convert(src, node, m_ctx);
             } catch (Throwable t) {
-                Logger.error("Failed to convert annotation " + Logger.formatArg(src) + " on node " + Logger.formatArg(node));
-                Logger.printStackTrace(t, 10);
+                if (Logger.once.error("Failed to convert annotation ", src, "node", node)) {
+                    AsmDump dumper = new AsmDump(m_ctx.jarContext());
+                    System.err.println(dumper.dumpClass(m_ctx.getClassBytes()));
+                    Logger.printStackTrace(t, 10);
+                }
                 return null;
             }
         }

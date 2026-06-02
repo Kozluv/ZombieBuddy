@@ -33,6 +33,7 @@ public @interface Patch {
                                          // boolean IKnowWhatIAmDoing() default false; // if true, the patch will be applied even if it is risky
     boolean strictMatch() default false; // if true, advice methods without arguments match only methods with no arguments
                                          // if false (default), advice methods without arguments match any method
+    boolean debug() default false;
 
     /** Alias for net.bytebuddy.asm.Advice.OnMethodEnter - mods should use Patch.OnEnter instead */
     @Retention(RetentionPolicy.RUNTIME)
@@ -115,7 +116,7 @@ public @interface Patch {
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.PARAMETER)
     @Internal.Meta(targetAnnotation = Advice.AllArguments.class)
-    @Internal.Meta(targetAnnotation = net.bytebuddy.implementation.bind.annotation.AllArguments.class)
+    @Internal.Meta(targetAnnotation = net.bytebuddy.implementation.bind.annotation.AllArguments.class, isAdvice = false)
     public @interface AllArguments {
         boolean readOnly() default true;
     }
@@ -123,21 +124,21 @@ public @interface Patch {
     /** Marks a {@code @Patch.OnEnter} / {@code @Patch.OnExit} method return type as dynamically typed (delegation only). */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.METHOD)
-    @Internal.Meta(targetAnnotation = net.bytebuddy.implementation.bind.annotation.RuntimeType.class)
+    @Internal.Meta(targetAnnotation = net.bytebuddy.implementation.bind.annotation.RuntimeType.class, isAdvice = false)
     public @interface RuntimeType {
     }
 
     /** Binds a {@code Method} handle to the overridden super-method (delegation only). */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.PARAMETER)
-    @Internal.Meta(targetAnnotation = net.bytebuddy.implementation.bind.annotation.SuperMethod.class)
+    @Internal.Meta(targetAnnotation = net.bytebuddy.implementation.bind.annotation.SuperMethod.class, isAdvice = false)
     public @interface SuperMethod {
     }
 
     /** Binds a {@code Callable} that invokes the overridden super-method (delegation only). */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.PARAMETER)
-    @Internal.Meta(targetAnnotation = net.bytebuddy.implementation.bind.annotation.SuperCall.class)
+    @Internal.Meta(targetAnnotation = net.bytebuddy.implementation.bind.annotation.SuperCall.class, isAdvice = false)
     public @interface SuperCall {
     }
 
@@ -150,7 +151,7 @@ public @interface Patch {
     }
 
     /**
-     * Binds a parameter to an instance or static field of the target class (read-only by default).
+     * Binds a parameter to an instance or static field of the target class (writable by default).
      *
      * <p>The field name is inferred from the parameter name when {@link #value()} is omitted,
      * which requires debug info (present in all standard Gradle builds).
@@ -158,16 +159,15 @@ public @interface Patch {
      * Provide multiple names to try them in order; the first name that exists on the target class is used.
      * Multi-name resolution requires the target class to be already loaded, so it cannot be used in preload-time patches.
      *
-     * <p>Use {@code readOnly = false} to write the (possibly modified) value back after the
-     * advice returns, or prefer the shorthand {@link FieldRW}.
+     * <p>Use {@code readOnly = true} for read-only field binding.
      *
      * <p>{@link #name()} is an alias for {@link #value()}; specifying both is a compile error.
      *
      * <pre>{@code
      * @Patch.OnEnter
      * public static void enter(@Patch.This Object self,
-     *                          @Patch.Field String name,                      // inferred: reads this.name
-     *                          @Patch.Field("counter") int c,                 // explicit field name
+     *                          @Patch.Field(readOnly = true) String name,     // read-only
+     *                          @Patch.Field("counter") int c,                 // read/write (default)
      *                          @Patch.Field({"speedNew", "speed"}) float spd) // tries "speedNew", falls back to "speed"
      * }</pre>
      */
@@ -178,7 +178,7 @@ public @interface Patch {
         @Internal.Flags(inferFromTargetName = true, probeField = true)
         String[] value() default {};                 // field name(s): empty = infer from parameter name; multiple = try in order
         Class<?> declaringType() default void.class; // the class that declares the field; void.class = infer from target class
-        boolean readOnly() default true;
+        boolean readOnly() default false;
         boolean optional() default false;
 
         public class Converter extends Internal.AnnConverterBase {
@@ -198,34 +198,12 @@ public @interface Patch {
                     return null;
                 }
                 els.put("value", name);
+                if (els.get("readOnly") == null) {
+                    els.put("readOnly", Boolean.FALSE); // default to false for backward compatibility
+                }
                 return createNode( Advice.FieldValue.class, els );
             }
         }
-    }
-
-    /**
-     * Shorthand for {@code @Patch.Field(readOnly = false)}: binds a parameter to an instance or
-     * static field of the target class and writes the value back after the advice returns.
-     *
-     * <p>The field name is inferred from the parameter name when {@link #value()} is omitted.
-     * Multiple names may be specified and are tried in order against the target class.
-     * Multi-name resolution requires the target class to be already loaded, so it cannot be used in preload-time patches.
-     *
-     * <pre>{@code
-     * @Patch.OnEnter
-     * public static void enter(@Patch.FieldRW int counter) {
-     *     counter++;  // increments the field on the target object
-     * }
-     * }</pre>
-     */
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target({ElementType.PARAMETER, ElementType.METHOD})
-    @Internal.Meta(targetAnnotation = Advice.FieldValue.class)
-    public @interface FieldRW {
-        @Internal.Flags(inferFromTargetName = true, probeField = true)
-        String[] value() default {};  // empty = infer from parameter name; multiple = try in order
-        Class<?> declaringType() default void.class; // the class that declares the field; void.class = infer from target class
-        boolean optional() default false;
     }
 
     // https://javadoc.io/doc/net.bytebuddy/byte-buddy/1.18.8/net/bytebuddy/asm/Advice.Handle.html            - returns only MethodHandle, no VarHandle support
@@ -233,7 +211,7 @@ public @interface Patch {
     // https://javadoc.io/doc/net.bytebuddy/byte-buddy/1.18.8/net/bytebuddy/asm/Advice.FieldSetterHandle.html - --//--
 
     @Retention(RetentionPolicy.RUNTIME)
-    @Target({ElementType.FIELD, ElementType.PARAMETER})
+    @Target(ElementType.PARAMETER)
     @Internal.Meta(requireType = java.lang.invoke.MethodHandle.class)
     public @interface MethodHandle {
         @Internal.Flags(inferFromTargetName = true, probeMethod = true)
@@ -275,7 +253,7 @@ public @interface Patch {
     }
 
     @Retention(RetentionPolicy.RUNTIME)
-    @Target({ElementType.FIELD, ElementType.PARAMETER})
+    @Target(ElementType.PARAMETER)
     @Internal.Meta(requireType = java.lang.invoke.VarHandle.class)
     public @interface VarHandle {
         @Internal.Flags(inferFromTargetName = true, probeField = true)

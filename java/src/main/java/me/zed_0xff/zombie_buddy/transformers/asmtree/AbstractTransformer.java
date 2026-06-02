@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
@@ -22,9 +23,16 @@ abstract class AbstractTransformer extends Transformer {
     private static final HashMap<String, Map<Integer, String>> _methodArgNamesCache = new HashMap<>();
 
     static {
-        Logger.addFormatter( ClassNode.class,     o -> "<ClassNode "  + ((ClassNode)o).name  + ">" );
+        Logger.addFormatter( ClassNode.class,     o -> ("<ClassNode "  + ((ClassNode)o).name  + ">").replace(" me/zed_0xff/zombie_buddy/", " ") );
         Logger.addFormatter( MethodNode.class,    o -> "<MethodNode " + ((MethodNode)o).name + ">" );
         Logger.addFormatter( ParameterNode.class, o -> "<ParamNode "  + ((ParameterNode)o).name + ">" );
+
+        Logger.addFormatter( AnnotationNode.class, o -> {
+            AnnotationNode ann = (AnnotationNode)o;
+            String desc = ann.desc;
+            String name = desc.substring(desc.lastIndexOf('/') + 1, desc.length() - 1);
+            return "<AnnotationNode @" + name + ">";
+        });
     }
 
     protected static Map<Integer, String> getArgNames(MethodNode mn) {

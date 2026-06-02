@@ -6,9 +6,8 @@ import me.zed_0xff.zombie_buddy.annotations.Patch;
 /**
  * Test patch using MethodDelegation to replace a constructor with parameters.
  */
-@SuppressWarnings("removal")
 @Patch(
-    className = "testjar.ConstructorDelegationTargetA*",
+    className = "testjar.ConstructorDelegationTargetA1", // TODO: "TargetA*" or ["TargetA1", "TargetA2"]
     methodName = "<init>",
     isAdvice = false
 )

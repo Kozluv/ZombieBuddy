@@ -1,15 +1,11 @@
 package me.zed_0xff.zombie_buddy.transformers;
 
+import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.EnumSet;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -18,12 +14,16 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.jar.JarOutputStream;
+import java.util.jar.JarInputStream;
 import java.util.jar.Manifest;
+import java.util.Collections;
 import java.util.stream.Collectors;
 
+import me.zed_0xff.zombie_buddy.CLIUtil;
 import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.Utils;
+import me.zed_0xff.zombie_buddy.annotations.Patch;
+import me.zed_0xff.zombie_buddy.jardump.AsmDump;
 import me.zed_0xff.zombie_buddy.transformers.asmtree.Binder;
 import me.zed_0xff.zombie_buddy.transformers.asmtree.Converter;
 import me.zed_0xff.zombie_buddy.transformers.asmtree.Publicizer;
@@ -31,7 +31,7 @@ import me.zed_0xff.zombie_buddy.transformers.asmtree.Resolver;
 import me.zed_0xff.zombie_buddy.transformers.bytebuddy.ZB2Compat;
 
 /** Shared transformer registry and jar/class pipeline (used by Loader and jardump). */
-public final class TransformerPipeline {
+public final class Pipeline {
     private enum TransOpt {
         CONDITIONAL,
         DEFAULT,
@@ -110,16 +110,16 @@ public final class TransformerPipeline {
         return TRANS_LIST;
     }
 
-    public static TransformerPipeline patchLoad() {
+    public static Pipeline patchLoad() {
         return defaults();
     }
 
-    public static TransformerPipeline defaults() {
+    public static Pipeline defaults() {
         List<Supplier<Transformer>> factories = TRANS_LIST.stream().filter(TransInfo::isDefault).map(TransInfo::factory).toList();
-        return new TransformerPipeline(factories);
+        return new Pipeline(factories);
     }
 
-    public static TransformerPipeline of(List<String> ids) {
+    public static Pipeline of(List<String> ids) {
         ArrayList<Supplier<Transformer>> factories = new ArrayList<>();
         for (String id : ids) {
             TransInfo info = TRANS_MAP.get(id);
@@ -127,12 +127,12 @@ public final class TransformerPipeline {
             factories.add(info.factory());
         }
 
-        return new TransformerPipeline(factories);
+        return new Pipeline(factories);
     }
 
     private final List<Supplier<Transformer>> m_factories;
 
-    private TransformerPipeline(List<Supplier<Transformer>> factories) {
+    private Pipeline(List<Supplier<Transformer>> factories) {
         m_factories = List.copyOf(factories);
     }
 
@@ -145,6 +145,12 @@ public final class TransformerPipeline {
             Transformer.Result result = t.transform(rewritten, classCtx);
             if (result.modified() && result.bytes() != null) {
                 rewritten = result.bytes();
+
+                if (Logger.getLevel() >= Logger.TRACE2 || classCtx.isDebug()) {
+                    AsmDump dumper = new AsmDump(jctx);
+                    System.err.println(t.getClass().getSimpleName() + ":");
+                    System.err.println(CLIUtil.indent(dumper.dumpClass(rewritten)));
+                }
             }
         }
 
@@ -160,86 +166,98 @@ public final class TransformerPipeline {
         }
     }
 
-    /** Transform {@code sourceJar} and return a cached copy under the game cache dir. */
-    public static Path transformPatchJar(Path sourceJar) throws IOException {
-        Path source = sourceJar.toRealPath();
-        String hash = Utils.sha256Hex(source);
-        Path cacheDir = patchJarCacheDir();
-        Files.createDirectories(cacheDir);
-        Path cached = cacheDir.resolve(hash + ".jar");
-        if (Files.isRegularFile(cached)) {
-            return cached;
-        }
+    /** Transform {@code sourceJar} in memory (patch-load pipeline). */
+    public static TransformedJar transformPatchJar(java.nio.file.Path sourceJar, String packageName) throws IOException {
+        return transformPatchJar(java.nio.file.Files.readAllBytes(sourceJar.toRealPath()), packageName);
+    }
 
+    /** Transform embedded patch-jar bytes in memory (patch-load pipeline). */
+    public static TransformedJar transformPatchJar(byte[] jarBytes, String packageName) throws IOException {
         Map<String, byte[]> classes = new HashMap<>();
         ArrayList<String> classNames = new ArrayList<>();
-        LinkedHashMap<String, byte[]> otherEntries = new LinkedHashMap<>();
+        LinkedHashMap<String, byte[]> resources = new LinkedHashMap<>();
         Manifest manifest;
 
-        try (JarFile jar = new JarFile(source.toFile(), false)) {
+        try (JarInputStream jar = new JarInputStream(new ByteArrayInputStream(jarBytes))) {
             manifest = jar.getManifest();
-            for (Enumeration<JarEntry> en = jar.entries(); en.hasMoreElements(); ) {
-                JarEntry je = en.nextElement();
+            JarEntry je;
+            while ((je = jar.getNextJarEntry()) != null) {
                 String name = je.getName();
                 if (je.isDirectory()) continue;
 
-                try (InputStream in = jar.getInputStream(je)) {
-                    byte[] data = in.readAllBytes();
-                    if (name.endsWith(".class") && !name.startsWith("META-INF/") && !name.equals("module-info.class")) {
-                        String className = name.substring(0, name.length() - 6).replace('/', '.');
-                        classes.put(className, data);
-                        classNames.add(className);
-                    } else if (!JarFile.MANIFEST_NAME.equals(name)) {
-                        otherEntries.put(name, data);
-                    }
+                byte[] data = jar.readAllBytes();
+                if (name.endsWith(".class") && !name.startsWith("META-INF/") && !name.equals("module-info.class")) {
+                    String className = name.substring(0, name.length() - 6).replace('/', '.');
+                    classes.put(className, data);
+                    classNames.add(className);
+                } else if (!JarFile.MANIFEST_NAME.equals(name)) {
+                    resources.put(name, data);
                 }
             }
         }
 
-        Collections.sort(classNames);
-        TransformerPipeline pipeline = patchLoad();
+        return transformParsedJar(classes, classNames, resources, manifest, packageName);
+    }
+
+    private static TransformedJar transformParsedJar(
+            Map<String, byte[]> classes,
+            ArrayList<String> classNames,
+            LinkedHashMap<String, byte[]> resources,
+            Manifest manifest,
+            String packageName
+    ) throws IOException {
+
+        Pipeline pipeline = patchLoad();
 
         try (JarContext jctx = JarContext.forClasses(classes)) {
             pipeline.transformJarClasses(jctx, classNames);
 
-            Path tmp = Files.createTempFile(cacheDir, "patch-", ".jar");
-            try (JarOutputStream jos = new JarOutputStream(Files.newOutputStream(tmp))) {
-                if (manifest != null) {
-                    jos.putNextEntry(new JarEntry(JarFile.MANIFEST_NAME));
-                    manifest.write(jos);
-                    jos.closeEntry();
-                }
-
-                for (String className : classNames) {
-                    byte[] bytes = jctx.getClassBytes(className);
-                    if (bytes == null) continue;
-
-                    JarEntry entry = new JarEntry(className.replace('.', '/') + ".class");
-                    jos.putNextEntry(entry);
-                    jos.write(bytes);
-                    jos.closeEntry();
-                }
-
-                for (var e : otherEntries.entrySet()) {
-                    jos.putNextEntry(new JarEntry(e.getKey()));
-                    jos.write(e.getValue());
-                    jos.closeEntry();
+            HashMap<String, byte[]> transformedClasses = new HashMap<>(classes.size());
+            for (String className : classNames) {
+                byte[] bytes = jctx.getClassBytes(className);
+                if (bytes != null) {
+                    transformedClasses.put(className, bytes);
                 }
             }
 
-            Files.move(tmp, cached, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            if (manifest != null) {
+                ByteArrayOutputStream manifestOut = new ByteArrayOutputStream();
+                manifest.write(manifestOut);
+                resources.putIfAbsent(JarFile.MANIFEST_NAME, manifestOut.toByteArray());
+            }
+
+            ArrayList<String> patches = new ArrayList<>();
+            for (String className : classNames) {
+                var td = jctx.getTypeDesc(className);
+                if (td == null || td.getDeclaredAnnotations().ofType(Patch.class) == null) {
+                    continue;
+                }
+
+                if (!Utils.isBlank(packageName)) {
+                    String classPackage = td.getPackage() != null ? td.getPackage().getName() : "";
+                    if (!classPackage.equals(packageName)) {
+                        continue;
+                    }
+                }
+
+                patches.add(className);
+            }
+            Collections.sort(patches);
+
+            String mainClassName = null;
+            String preMainClassName = null;
+            if (!Utils.isBlank(packageName)) {
+                String main = packageName + ".Main";
+                String preMain = packageName + ".PreMain";
+                if (transformedClasses.containsKey(main)) {
+                    mainClassName = main;
+                }
+                if (transformedClasses.containsKey(preMain)) {
+                    preMainClassName = preMain;
+                }
+            }
+
+            return new TransformedJar(Map.copyOf(transformedClasses), Map.copyOf(resources), List.copyOf(patches), mainClassName, preMainClassName);
         }
-
-        Logger.debug("Transformed patch jar cached at " + cached);
-        return cached;
-    }
-
-    private static Path patchJarCacheDir() {
-        String cacheDir = Utils.getCacheDir();
-        if (Utils.isBlank(cacheDir)) {
-            return Path.of(System.getProperty("java.io.tmpdir"), "zombiebuddy", "patch-jars");
-        }
-
-        return Path.of(cacheDir, "zombiebuddy", "patch-jars");
     }
 }

@@ -9,7 +9,7 @@ import testjar.MemberHandleHelper;
 @Patch(className = "testjar.MemberHandleTarget", methodName = "doParamHandle")
 public class PatchMemberHandleParam {
     @Patch.OnEnter
-    public static void enter(@Patch.Field String name,
+    public static void enter(@Patch.Field(readOnly = true) String name,
                              @Patch.MethodHandle(className = "testjar.MemberHandleHelper",
                                                 returnType = String.class,
                                                 paramTypes = {String.class, String.class}) MethodHandle greet) throws Throwable {

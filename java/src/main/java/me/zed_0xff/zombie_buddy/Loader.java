@@ -8,7 +8,9 @@ import static me.zed_0xff.zombie_buddy.ModFlags.MF_SIGNED;
 import static me.zed_0xff.zombie_buddy.ModFlags.MF_TRUST_AUTHOR;
 import static me.zed_0xff.zombie_buddy.ModFlags.MF_VALID;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
@@ -23,15 +25,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.jar.JarInputStream;
 
 import org.lwjgl.glfw.GLFW;
-
 import org.lwjglx.opengl.Display;
+
 import me.zed_0xff.zombie_buddy.SteamWorkshop.SteamID64;
 import me.zed_0xff.zombie_buddy.SteamWorkshop.WorkshopItemID;
 import me.zed_0xff.zombie_buddy.frontend.ModApprovalFrontend;
 import me.zed_0xff.zombie_buddy.frontend.ModApprovalFrontends;
+import me.zed_0xff.zombie_buddy.transformers.TransformedJar;
+import me.zed_0xff.zombie_buddy.transformers.Pipeline;
 import zombie.GameWindow;
 import zombie.gameStates.ChooseGameInfo;
 
@@ -127,7 +133,15 @@ public class Loader {
         return r != ZBSVerifier.CheckResult.DISABLED && !r.flags().has(MF_VALID);
     }
 
-    static final Set<Path> g_known_jars = new HashSet<>(); // used by PatchEngine
+    static final Map<Path, ClassLoader> g_mod_loaders = new ConcurrentHashMap<>();
+    static final Map<Path, TransformedJar> g_transformed_jars = new ConcurrentHashMap<>();
+
+    static final String BUNDLED_PATCHES_JAR = "patches.jar";
+    static final String BUNDLED_EXPERIMENTAL_JAR = "experimental.jar";
+
+    private static Path embeddedJarKey(String resourceName) {
+        return Path.of("classpath:" + resourceName);
+    }
 
     // Persisted entries loaded from disk - the source of truth for saving
     private static List<ModApprovalsStore.ModEntry> g_storedEntries = new ArrayList<>();
@@ -457,7 +471,6 @@ public class Loader {
                 continue;
             }
             loadJar(entry.canJarPath(), entry.javaPkgName(), entry.hash(), Phase.PREMAIN);
-            g_known_jars.remove(entry.canJarPath()); // remove from known_jars to allow Main.main run
             g_jarLoadStatus.put(entry.canJarPath(), new JavaModLoadState(
                         entry.id(),
                         entry.canJarPath(),
@@ -473,59 +486,108 @@ public class Loader {
         }
     }
 
-    /**
-     * Adds {@code jarFile} to the system classpath if not already present.
-     * Validates that {@code packageName} exists in the JAR. If {@code approvedHash}
-     * is non-null, re-hashes as a TOCTOU guard against file swaps after approval.
-     *
-     * @return true if the JAR was added; false on any failure or already-loaded.
-     */
-    private static boolean addJarToClasspath(Path jarPath, String packageName, String approvedHash) {
-        // Resolve symlinks and normalise path once; all subsequent operations use the canonical
-        // file so that symlink-swap attacks and path-alias bypasses of g_known_jars are eliminated.
+    // called by Agent and Loader
+    static boolean loadJar(Path jarPath, String packageName, String approvedHash, Phase phase) {
+        if (!Files.isRegularFile(jarPath)) {
+            Logger.error("JAR not found: " + jarPath);
+            return false;
+        }
+        if (Utils.isBlank(packageName)) {
+            Logger.error("Invalid package name: '" + packageName + "' for JAR " + jarPath);
+            return false;
+        }
         try {
             jarPath = jarPath.toRealPath();
         } catch (IOException e) {
             Logger.error("Cannot resolve canonical path for " + jarPath + ": " + e);
             return false;
         }
-        if (g_known_jars.contains(jarPath)) {
-            return false;
+        if (g_mod_loaders.containsKey(jarPath)) {
+            return ApplyPatchesFromPackage(packageName, jarPath, phase);
         }
         if (!validatePackageInJar(jarPath, packageName)) {
             Logger.error("JAR does not contain package " + packageName + ": " + jarPath);
             return false;
         }
-        // Open the JarFile before re-hashing so both operations target the same inode.
-        // This closes the symlink-swap window between the hash check and the load; a hard
-        // file-replacement race (atomic rename) cannot be fully prevented via the Java
-        // instrumentation API since appendToSystemClassLoaderSearch re-reads by path internally.
-        JarFile jf;
-        try {
-            jf = new JarFile(jarPath.toFile());
-        } catch (IOException e) {
-            Logger.error("Cannot open JAR " + jarPath + ": " + e);
-            return false;
-        }
         if (approvedHash != null) {
             String currentHash = Utils.sha256Hex(jarPath);
             if (!approvedHash.equals(currentHash)) {
-                try { jf.close(); } catch (IOException ignored) {}
                 Logger.error("SECURITY: JAR hash changed between approval and load for "
                     + jarPath + " — expected " + approvedHash + ", got " + currentHash
                     + ". Aborting load.");
                 return false;
             }
         }
-        try {
-            g_instrumentation.appendToSystemClassLoaderSearch(jf);
-            g_known_jars.add(jarPath);
-            Logger.info("added to classpath: " + jarPath);
-            return true;
-        } catch (Exception e) {
-            try { jf.close(); } catch (IOException ignored) {}
-            Logger.error("Error adding JAR to classpath " + jarPath + ": " + e);
+
+        return transformAndLoadJar(jarPath, packageName, phase, null);
+    }
+
+    /** Load a patch jar bundled as a classpath resource inside {@code ZombieBuddy.jar}. */
+    static boolean loadResourceJar(String resourceName, String packageName, Phase phase) {
+        if (Utils.isBlank(resourceName)) {
+            Logger.error("Invalid embedded jar resource name");
             return false;
+        }
+        if (Utils.isBlank(packageName)) {
+            Logger.error("Invalid package name: '" + packageName + "' for resource " + resourceName);
+            return false;
+        }
+
+        Path cacheKey = embeddedJarKey(resourceName);
+        if (g_mod_loaders.containsKey(cacheKey)) {
+            return ApplyPatchesFromPackage(packageName, cacheKey, phase);
+        }
+
+        byte[] jarBytes = readResourceBytes(resourceName);
+        if (jarBytes == null) {
+            Logger.error("Embedded JAR not found: " + resourceName);
+            return false;
+        }
+        if (!validatePackageInJar(jarBytes, packageName)) {
+            Logger.error("Embedded JAR does not contain package " + packageName + ": " + resourceName);
+            return false;
+        }
+
+        return transformAndLoadJar(cacheKey, packageName, phase, jarBytes);
+    }
+
+    /** Transform a patch jar and define its classes on a mod {@link ClassLoader}. Cached per {@code cacheKey}. */
+    static boolean transformAndLoadJar(Path cacheKey, String packageName, Phase phase, byte[] jarBytes) {
+        ClassLoader modLoader = g_mod_loaders.get(cacheKey);
+        if (modLoader == null) {
+            try {
+                TransformedJar transformed = jarBytes != null
+                        ? Pipeline.transformPatchJar(jarBytes, packageName)
+                        : Pipeline.transformPatchJar(cacheKey, packageName);
+                modLoader = ModJarInjector.inject(transformed);
+                g_mod_loaders.put(cacheKey, modLoader);
+                g_transformed_jars.put(cacheKey, transformed);
+                Logger.info("loaded transformed mod jar", cacheKey);
+            } catch (IOException e) {
+                Logger.error("Failed to transform/load patch jar " + cacheKey + ": " + e.getMessage());
+                return false;
+            }
+        }
+
+        return ApplyPatchesFromPackage(packageName, cacheKey, phase);
+    }
+
+    /** Transform {@code jarPath} and define its classes on a mod {@link ClassLoader}. Cached per canonical jar path. */
+    static boolean transformAndLoadJar(Path jarPath, String packageName, Phase phase) {
+        return transformAndLoadJar(jarPath, packageName, phase, null);
+    }
+
+    private static byte[] readResourceBytes(String resourceName) {
+        String path = resourceName.startsWith("/") ? resourceName.substring(1) : resourceName;
+        try (InputStream in = Loader.class.getClassLoader().getResourceAsStream(path)) {
+            if (in == null) {
+                return null;
+            }
+
+            return in.readAllBytes();
+        } catch (IOException e) {
+            Logger.error("Failed to read embedded jar " + resourceName + ": " + e.getMessage());
+            return null;
         }
     }
 
@@ -981,27 +1043,18 @@ public class Loader {
         }
     }
 
-    // called by Agent and Loader
-    static boolean loadJar(Path jarPath, String packageName, String approvedHash, Phase phase) {
-        if (!Files.isRegularFile(jarPath)) {
-            Logger.error("JAR not found: " + jarPath);
-            return false;
-        }
-        if (Utils.isBlank(packageName)) {
-            Logger.error("Invalid package name: '" + packageName + "' for JAR " + jarPath);
-            return false;
-        }
-        if (!addJarToClasspath(jarPath, packageName, approvedHash)) {
-            return false;
-        }
-        return ApplyPatchesFromPackage(packageName, null, phase);
-    }
-
     private static final Set<String> _known_mains = new HashSet<>();
     private static final HashMap<String, EnumSet<Phase>> _known_package_phases = new HashMap<>();
 
     // called by Agent and Loader
-    static boolean ApplyPatchesFromPackage(String packageName, ClassLoader modLoader, Phase phase) {
+    static boolean ApplyPatchesFromPackage(String packageName, Path jarPath, Phase phase) {
+        ClassLoader modLoader = g_mod_loaders.get(jarPath);
+        TransformedJar transformed = g_transformed_jars.get(jarPath);
+        if (modLoader == null || transformed == null) {
+            Logger.error("No transformed jar loaded for " + jarPath);
+            return false;
+        }
+
         EnumSet<Phase> phases =
             _known_package_phases.computeIfAbsent(packageName, k -> EnumSet.noneOf(Phase.class));
 
@@ -1012,13 +1065,15 @@ public class Loader {
         }
 
         // Load and invoke optional [Pre]Main class
-        String mainClassName = packageName + "." + (phase == Phase.PREMAIN ? "PreMain" : "Main");
-        if (_known_mains.contains(mainClassName)) {
+        String mainClassName = phase == Phase.PREMAIN ? transformed.preMainClassName() : transformed.mainClassName();
+        if (mainClassName == null) {
+            Logger.debug("No " + phase + " class for package " + packageName);
+        } else if (_known_mains.contains(mainClassName)) {
             Logger.debug("Java " + phase + " class " + mainClassName + " already loaded, skipping.");
         } else {
             _known_mains.add(mainClassName);
 
-            Class<?> cls = Reflect.on(mainClassName).getType();
+            Class<?> cls = loadMainClass(mainClassName, modLoader);
             Logger.info("trying to load " + mainClassName + ": " + cls);
             if (cls != null) {
                 try_call_main(cls, phase);
@@ -1027,9 +1082,22 @@ public class Loader {
 
         // only apply patches on the first phase that loads this package
         if (phases.size() == 1) {
-            PatchEngine.applyPatches(packageName, modLoader);
+            Exposer.exposeClassesFromPackage(modLoader, transformed.classes().keySet(), packageName);
+            PatchEngine.applyPatches(transformed.patches(), modLoader);
         }
         return true;
+    }
+
+    private static Class<?> loadMainClass(String mainClassName, ClassLoader modLoader) {
+        if (modLoader != null) {
+            try {
+                return modLoader.loadClass(mainClassName);
+            } catch (ClassNotFoundException e) {
+                return null;
+            }
+        }
+
+        return Reflect.on(mainClassName).getType();
     }
 
     static void try_call_main(Class<?> cls, Phase phase) {
@@ -1052,6 +1120,32 @@ public class Loader {
             Logger.info(cls + ": method " + methodName + "() invoked successfully");
         } catch (Throwable t) {
             Logger.error(cls + ": error invoking " + methodName + "(): " + t);
+        }
+    }
+
+    private static boolean validatePackageInJar(byte[] jarBytes, String packageName) {
+        if (jarBytes == null || jarBytes.length == 0 || Utils.isBlank(packageName)) {
+            return false;
+        }
+
+        try {
+            String packagePath = Utils.toInternalName(packageName);
+            try (JarInputStream jf = new JarInputStream(new ByteArrayInputStream(jarBytes))) {
+                JarEntry entry;
+                while ((entry = jf.getNextJarEntry()) != null) {
+                    String entryName = entry.getName();
+                    if (entryName.startsWith(packagePath + "/")
+                            || entryName.equals(packagePath)
+                            || entryName.equals(packagePath + "/")) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        } catch (Exception e) {
+            Logger.error("Error validating package in embedded JAR: " + e);
+            return false;
         }
     }
 

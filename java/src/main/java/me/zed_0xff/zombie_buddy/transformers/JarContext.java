@@ -63,7 +63,8 @@ public class JarContext implements Closeable {
     private JarContext(ClassFileLocator locator) {
         m_origLocator = new Compound(
                 locator,
-                ForClassLoader.of(JarContext.class.getClassLoader()) // ZB + JDK
+                ForClassLoader.ofSystemLoader(),
+                ForClassLoader.of(JarContext.class.getClassLoader())
                 );
         // Pool must match m_origLocator: tests pass a Simple locator with one class; nested/referenced types and annotation types resolve via the classloader leg.
         m_origPool = createTypePool(m_origLocator);
@@ -208,7 +209,9 @@ public class JarContext implements Closeable {
             // binary name: java.lang.String
             return pool.describe(s).resolve();
         } catch (Exception e) {
-            Logger.once.warn("Failed to resolve type", s, e.getMessage());
+            if (Logger.once.warn("Failed to resolve type", s, e.getMessage())) {
+                Logger.printStackTrace(e, 10);
+            }
             return null;
         }
     }

@@ -39,7 +39,7 @@ public class TargetPatch {
     // should trigger warnings:
     //  - not existing method
     //  - non-void return type
-    @Patch(className = "testjar.Class", methodName = "notExistingMethod")
+    @Patch(className = "testjar.TargetClass", methodName = "notExistingMethod")
     public class BadTargetPatch {
         @Patch.OnExit
         public static int exit() {

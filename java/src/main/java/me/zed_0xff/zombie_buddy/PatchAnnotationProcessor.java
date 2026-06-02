@@ -46,12 +46,12 @@ public class PatchAnnotationProcessor extends AbstractProcessor {
                     "@Patch.Field: specify either 'value' or 'name', not both", elem, mirror);
             }
 
-            boolean readOnlyFalse = vals.entrySet().stream()
-                .anyMatch(e -> e.getKey().getSimpleName().contentEquals("readOnly") && Boolean.FALSE.equals(e.getValue().getValue()));
+            boolean readOnlyTrue = vals.entrySet().stream()
+                .anyMatch(e -> e.getKey().getSimpleName().contentEquals("readOnly") && Boolean.TRUE.equals(e.getValue().getValue()));
 
-            if (!readOnlyFalse && !param.getModifiers().contains(Modifier.FINAL)) {
+            if (readOnlyTrue && !param.getModifiers().contains(Modifier.FINAL)) {
                 processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING,
-                    "@Patch.Field readOnly=true; declare the parameter final OR set readOnly=false OR use @Patch.FieldRW", elem, mirror);
+                    "@Patch.Field readOnly=true; declare the parameter final", elem, mirror);
             }
         }
     }

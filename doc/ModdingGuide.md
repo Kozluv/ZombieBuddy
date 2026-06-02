@@ -205,8 +205,7 @@ Advice methods can bind to parts of the intercepted call using parameter annotat
 | `@Patch.Return` | OnExit only | The method's return value. `readOnly = false` to overwrite. |
 | `@Patch.Thrown` | OnExit only | The exception thrown, or `null` if none. |
 | `@Patch.Local("name")` | OnEnter, OnExit | A named local variable from the target's debug info. |
-| `@Patch.Field` | OnEnter, OnExit | An instance or static field of the target class (read-only by default). |
-| `@Patch.FieldRW` | OnEnter, OnExit | Shorthand for `@Patch.Field(readOnly = false)`: reads and writes back after advice returns. |
+| `@Patch.Field` | OnEnter, OnExit | An instance or static field of the target class (writable by default). `readOnly = true` for read-only binding. |
 
 ```java
 @Patch(className = "zombie.characters.IsoGameCharacter", methodName = "attack")
@@ -224,9 +223,9 @@ public class AttackPatch {
 }
 ```
 
-### Reading and Writing Fields (@Patch.Field / @Patch.FieldRW)
+### Reading and Writing Fields (@Patch.Field)
 
-`@Patch.Field` reads an instance or static field of the target class. `@Patch.FieldRW` (shorthand for `@Patch.Field(readOnly = false)`) also writes the modified value back after the advice returns.
+`@Patch.Field` binds a parameter to an instance or static field of the target class. By default the value is written back after the advice returns. Use `readOnly = true` for read-only binding.
 
 The field name is inferred from the parameter name when the annotation `value()` is omitted. Provide an explicit name when the parameter name must differ. Provide multiple names and the engine tries them in order, using the first one that exists on the target class — useful for patches that must work across game versions that renamed a field. Multi-name resolution requires the target class to be already loaded, so it cannot be used in preload-time patches.
 
@@ -235,10 +234,10 @@ The field name is inferred from the parameter name when the annotation `value()`
 public class PlayerUpdatePatch {
     @Patch.OnEnter
     public static void enter(@Patch.This Object self,
-                             @Patch.Field String username,                       // inferred from parameter name
-                             @Patch.Field("maxSpeed") float speed,               // explicit name
+                             @Patch.Field(readOnly = true) String username,      // read-only
+                             @Patch.Field("maxSpeed") float speed,               // read/write (default)
                              @Patch.Field({"speedNew", "speed"}) float spd,      // tries "speedNew", falls back to "speed"
-                             @Patch.FieldRW int stamina) {                       // reads AND writes back
+                             @Patch.Field int stamina) {                         // read/write (default)
         if (stamina < 10) stamina = 10;  // write-back happens after advice returns
     }
 }

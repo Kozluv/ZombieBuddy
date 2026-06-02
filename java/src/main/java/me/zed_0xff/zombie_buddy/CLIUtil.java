@@ -1,8 +1,6 @@
-package me.zed_0xff.zombie_buddy.jardump;
+package me.zed_0xff.zombie_buddy;
 
 import java.util.Map;
-
-import me.zed_0xff.zombie_buddy.Utils;
 
 public class CLIUtil {
     public static final int RESET   = 0;
@@ -18,11 +16,12 @@ public class CLIUtil {
 
     public static final int BRIGHT  = 60; // ADD to base color code for bright variants
 
-    public static final int ANN_COLOR    = MAGENTA;
-    public static final int BB_ANN_COLOR = CYAN; // bytebuddy
+    public static final int ANN_COLOR         = MAGENTA;
+    public static final int BB_ANN_COLOR      = CYAN;
+    public static final int BB_BIND_ANN_COLOR = CYAN + BRIGHT;
 
     static final String PKG_PRIVATE = "pkgPrivate";
-    static final Map<String, Integer> _modifierColors = Map.of(
+    public static final Map<String, Integer> _modifierColors = Map.of(
         PKG_PRIVATE, RED,
         "private",   RED,
         "protected", RED,

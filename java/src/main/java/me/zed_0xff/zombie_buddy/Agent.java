@@ -86,13 +86,13 @@ public class Agent {
         }
 
         Exposer.exposeAnnotatedClasses(ZombieBuddy.class.getPackage().getName());
-        Loader.ApplyPatchesFromPackage(ZombieBuddy.class.getPackage().getName() + ".patches", null, Loader.Phase.PREMAIN);
 
-        // Load experimental patches if enabled
+        String basePkg = ZombieBuddy.class.getPackage().getName();
+        Loader.loadResourceJar(Loader.BUNDLED_PATCHES_JAR, basePkg + ".patches", Loader.Phase.PREMAIN);
         if (isExperimental()) {
-            Loader.ApplyPatchesFromPackage(ZombieBuddy.class.getPackage().getName() + ".patches.experimental", null, Loader.Phase.PREMAIN);
+            Loader.loadResourceJar(Loader.BUNDLED_EXPERIMENTAL_JAR, basePkg + ".patches.experimental", Loader.Phase.PREMAIN);
         }
-        
+
         if( arguments.containsKey("patches_jar")) {
             // Support multiple JARs separated by semicolon
             // Each entry must be in format <path>:<package_name>

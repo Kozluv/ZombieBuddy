@@ -1,11 +1,13 @@
 package me.zed_0xff.zombie_buddy.test;
 
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
-import testjar.TargetClass;
+import org.junit.jupiter.api.Test;
+
 import testjar.CustomObject;
-import testjar.OverloadedMethodsB;
+import testjar.TargetClass;
 
 public class PatchedTest {
     @Test

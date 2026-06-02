@@ -6,7 +6,7 @@ import testjar.FieldValueTarget;
 @Patch(className = "testjar.FieldValueTarget", methodName = "readNameAsObject")
 public class PatchFieldValueStringAsObject {
     @Patch.OnEnter
-    public static void enter(@Patch.This Object self, @Patch.Field final Object name) {
+    public static void enter(@Patch.This Object self, @Patch.Field(readOnly = true) final Object name) {
         FieldValueTarget.capturedCounter = name;
     }
 }

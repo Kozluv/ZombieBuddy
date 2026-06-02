@@ -35,7 +35,6 @@ dependencies {
     implementation 'net.bytebuddy:byte-buddy-agent:1.18.8'
 //    implementation 'org.ow2.asm:asm:9.9.1'
     implementation 'org.ow2.asm:asm-tree:9.9.1'                   // XXX should match version.asm in byte-buddy's pom.xml
-    implementation 'io.github.classgraph:classgraph:4.8.184'
     implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
     implementation 'com.google.code.gson:gson:2.12.1'
 
@@ -79,7 +78,6 @@ shadowJar {
     
     relocate 'com.google.gson', 'zb.com.google.gson'
     relocate 'org.bouncycastle', 'zb.org.bouncycastle'
-    relocate 'org.objectweb.asm', 'zb.org.objectweb.asm'
 
     exclude 'META-INF/*.SF'
     exclude 'META-INF/*.DSA'
@@ -171,7 +169,25 @@ sourceSets {
         java {
             srcDirs = ['src/main/java']
             include '**/*.java'
+            exclude 'me/zed_0xff/zombie_buddy/patches/**'
         }
+    }
+    patches {
+        java {
+            srcDirs = ['src/main/java/me/zed_0xff/zombie_buddy/patches']
+            include '**/*.java'
+            exclude 'experimental/**'
+        }
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+    experimental {
+        java {
+            srcDirs = ['src/main/java/me/zed_0xff/zombie_buddy/patches/experimental']
+            include '**/*.java'
+        }
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath + patches.output
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath + patches.output
     }
     test {
         java {
@@ -292,6 +308,16 @@ compileTestpatchesJava {
     options.annotationProcessorPath = files(sourceSets.main.output)
 }
 
+compilePatchesJava {
+    dependsOn compileJava
+    options.annotationProcessorPath = files(sourceSets.main.output)
+}
+
+compileExperimentalJava {
+    dependsOn compileJava, compilePatchesJava
+    options.annotationProcessorPath = files(sourceSets.main.output)
+}
+
 // Helper to recursively check for .class files
 def hasClassFiles(File dir) {
     if (!dir.exists() || !dir.isDirectory()) {
@@ -351,6 +377,33 @@ task testJar(type: Jar) {
     // Exclude patch classes - only include TargetClass
     exclude 'testjar/TargetPatch.class'
     dependsOn compileTestjarJava
+}
+
+task patchesJar(type: Jar) {
+    archiveBaseName.set("patches")
+    from sourceSets.patches.output
+    dependsOn compilePatchesJava
+}
+
+task experimentalJar(type: Jar) {
+    archiveBaseName.set("experimental")
+    from sourceSets.experimental.output
+    dependsOn compileExperimentalJava
+}
+
+shadowJar {
+    dependsOn patchesJar, experimentalJar
+    from(patchesJar.archiveFile) {
+        rename { 'patches.jar' }
+    }
+    from(experimentalJar.archiveFile) {
+        rename { 'experimental.jar' }
+    }
+}
+
+tasks.named("build") {
+    dependsOn patchesJar
+    dependsOn experimentalJar
 }
 
 // Create JAR for testpatches source set (contains patch classes)

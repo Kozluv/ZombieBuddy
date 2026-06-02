@@ -2,6 +2,7 @@ package me.zed_0xff.zombie_buddy.transformers;
 
 import java.util.Map;
 
+import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.annotations.Internal;
 import me.zed_0xff.zombie_buddy.annotations.Internal.MetaRoot;
 import me.zed_0xff.zombie_buddy.annotations.Patch;
@@ -23,6 +24,7 @@ public class ClassContext {
     private TypeDescription       m_typeDesc;
     private Patch                 m_patch = null; // lazily initialized by getPatch()
     private String                m_rootClassName = null; // same
+    private boolean               m_debug = false;
 
     /**
      * @param className JVM binary name ({@link Class#getName()})
@@ -43,6 +45,8 @@ public class ClassContext {
 
     public String className() { return m_className; }
     public JarContext jarContext() { return m_jctx; }
+
+    public byte[] getClassBytes() { return m_jctx.getClassBytes(m_className); }
 
     public void setClassBytes(byte[] classBytes) {
         m_jctx.setClassBytes(m_className, classBytes);
@@ -65,6 +69,8 @@ public class ClassContext {
     public void setChanged()      { m_changed = true; } // same
     public boolean isChanged()    { return m_changed; }
 
+    public boolean isDebug()      { return m_debug; }
+
     public Patch getPatch() {
         if (m_patch != null) return m_patch;
             
@@ -73,6 +79,7 @@ public class ClassContext {
             var p = td.getDeclaredAnnotations().ofType(Patch.class);
             if (p != null) {
                 m_patch = p.load();
+                m_debug |= m_patch.debug();
                 return m_patch;
             }
 

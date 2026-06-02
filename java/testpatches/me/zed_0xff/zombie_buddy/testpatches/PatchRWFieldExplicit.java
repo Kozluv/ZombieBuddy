@@ -5,7 +5,7 @@ import me.zed_0xff.zombie_buddy.annotations.Patch;
 @Patch(className = "testjar.FieldValueTarget", methodName = "incrementExplicit")
 public class PatchRWFieldExplicit {
     @Patch.OnEnter
-    public static void enter(@Patch.FieldRW("counter") int counter) {
-        counter++;
+    public static void enter(@Patch.Field("counter") int cnt) {
+        cnt++;
     }
 }
