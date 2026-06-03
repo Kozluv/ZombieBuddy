@@ -235,7 +235,8 @@ public final class PatchEngine {
         }
 
         AgentBuilder builder = new AgentBuilder.Default();
-        
+        Set<ClassLoader> exposedGameLoaders = new HashSet<>();
+
         // Only disable class format changes if we have Advice patches on already-loaded classes
         // This is needed for retransformation to work, but breaks MethodDelegation
         if (hasAdviceOnLoadedClasses) {
@@ -295,9 +296,9 @@ public final class PatchEngine {
             builder = builder
                 .type(SyntaxSugar.typeMatcher(className))
                 .transform((bl, td, cl, mo, pd) -> {
-                    // Advice/Delegation in game classes resolve patch types via the instrumented class loader.
-                    if (cl != null && cl != modLoader) {
-                        ModJarInjector.exposeJarInClassLoader(transformedJar, cl);
+                    // Advice in game classes resolves patch types via the instrumented class loader; skip vendored deps.
+                    if (cl != null && cl != modLoader && exposedGameLoaders.add(cl)) {
+                        ModJarInjector.exposePatchesInClassLoader(transformedJar, cl);
                     }
 
                     var result = bl;
@@ -342,6 +343,7 @@ public final class PatchEngine {
                             for (Method adviceMethod : patchClass.getDeclaredMethods()) {
                                 // Check if this method has advice annotations
                                 if (!hasAnnotation(adviceMethod, ADVICE_ANNOTATION_TYPES)) continue;
+                                // Logger.trace("processing advice method", adviceMethod);
                                 
                                 Annotation[][] paramAnns = adviceMethod.getParameterAnnotations();
                                 
@@ -352,6 +354,7 @@ public final class PatchEngine {
                                 
                                 // If method has no parameters (and no @AllArguments), match only methods with no parameters
                                 if (adviceMethod.getParameterCount() == 0 && !hasAllArguments) {
+                                    // Logger.trace("hasNoParamMethod => true", "adviceMethod.getParameterCount()", adviceMethod.getParameterCount(), "hasAllArguments", hasAllArguments);
                                     hasNoParamMethod = true;
                                 }
                                 
@@ -408,9 +411,10 @@ public final class PatchEngine {
                                     
                                     // If all parameters are special (e.g., only @Return), treat as matching methods with no parameters
                                     if (allParamsAreSpecial && paramTypes.length > 0) {
+                                        Logger.debug("hasNoParamMethod => true", "allParamsAreSpecial", allParamsAreSpecial, "paramTypes.length", paramTypes.length);
                                         hasNoParamMethod = true;
                                     }
-                                    
+
                                     // Build signature list from the argument map
                                     if (hasAnyArguments && !argumentMap.isEmpty()) {
                                         // Find the maximum index to determine signature length
@@ -516,39 +520,52 @@ public final class PatchEngine {
                                         @Override
                                         public boolean matches(net.bytebuddy.description.method.MethodDescription target) {
                                             int targetParamCount = target.getParameters().size();
+                                            boolean allArgsMatch = false;
+                                            boolean result = false;
                                             
-                                            // If advice has no parameters, check strictMatch
-                                            if (noParam && targetParamCount == 0) return true;
-                                            if (strict && noParam && maps.isEmpty() && targetParamCount > 0) return false;
-                                            
-                                            for (int i = 0; i < maps.size(); i++) {
-                                                java.util.Map<Integer, Class<?>> argMap = maps.get(i);
-                                                boolean exact = exactMatches.get(i);
-                                                
-                                                if (exact && targetParamCount != argMap.size()) continue;
-                                                if (!exact && targetParamCount < argMap.size()) continue;
-                                                if (!exact && targetParamCount < minParams) continue;
-
-                                                boolean allArgsMatch = true;
-                                                for (java.util.Map.Entry<Integer, Class<?>> entry : argMap.entrySet()) {
-                                                    int idx = entry.getKey();
-                                                    if (idx >= targetParamCount) {
-                                                        allArgsMatch = false;
-                                                        break;
-                                                    }
-                                                    Class<?> expected = entry.getValue();
-                                                    if (expected == Object.class) continue;
-                                                    net.bytebuddy.description.type.TypeDescription actual = target.getParameters().get(idx).getType().asErasure();
-                                                    if (!actual.isAssignableTo(expected)) {
-                                                        allArgsMatch = false;
-                                                        break;
-                                                    }
+                                            while (true) {
+                                                // If advice has no parameters, check strictMatch
+                                                if (noParam && targetParamCount == 0) {
+                                                    result = true;
+                                                    break;
                                                 }
-                                                if (allArgsMatch) return true;
+                                                if (strict && noParam && maps.isEmpty() && targetParamCount > 0) {
+                                                    result = false;
+                                                    break;
+                                                }
+                                                
+                                                for (int i = 0; i < maps.size(); i++) {
+                                                    java.util.Map<Integer, Class<?>> argMap = maps.get(i);
+                                                    boolean exact = exactMatches.get(i);
+                                                    
+                                                    if (exact && targetParamCount != argMap.size()) continue;
+                                                    if (!exact && targetParamCount < argMap.size()) continue;
+                                                    if (!exact && targetParamCount < minParams) continue;
+
+                                                    allArgsMatch = true;
+                                                    for (java.util.Map.Entry<Integer, Class<?>> entry : argMap.entrySet()) {
+                                                        int idx = entry.getKey();
+                                                        if (idx >= targetParamCount) {
+                                                            allArgsMatch = false;
+                                                            break;
+                                                        }
+                                                        Class<?> expected = entry.getValue();
+                                                        if (expected == Object.class) continue;
+                                                        net.bytebuddy.description.type.TypeDescription actual = target.getParameters().get(idx).getType().asErasure();
+                                                        if (!actual.isAssignableTo(expected)) {
+                                                            allArgsMatch = false;
+                                                            break;
+                                                        }
+                                                    }
+                                                    if (allArgsMatch) break;
+                                                }
+                                                break;
                                             }
                                             
                                             // If no signatures match, and we have no-param advice with strictMatch=false, allow it
-                                            return noParam && !strict;
+                                            result = allArgsMatch || (noParam && !strict && minParams == 0);
+                                            // Logger.trace("target", target, "result", result, "allArgsMatch", allArgsMatch, "noParam", noParam, "strict", strict);
+                                            return result;
                                         }
                                     });
                                     
