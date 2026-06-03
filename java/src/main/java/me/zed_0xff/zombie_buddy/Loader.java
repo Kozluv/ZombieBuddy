@@ -524,6 +524,7 @@ public class Loader {
 
     /** Load a patch jar bundled as a classpath resource inside {@code ZombieBuddy.jar}. */
     static boolean loadResourceJar(String resourceName, String packageName, Phase phase) {
+        Logger.debug("Loader.loadResourceJar", resourceName, packageName, phase);
         if (Utils.isBlank(resourceName)) {
             Logger.error("Invalid embedded jar resource name");
             return false;
@@ -553,6 +554,7 @@ public class Loader {
 
     /** Transform a patch jar and define its classes on a mod {@link ClassLoader}. Cached per {@code cacheKey}. */
     static boolean transformAndLoadJar(Path cacheKey, String packageName, Phase phase, byte[] jarBytes) {
+        Logger.debug("Loader.transformAndLoadJar", packageName, phase);
         ClassLoader modLoader = g_mod_loaders.get(cacheKey);
         if (modLoader == null) {
             try {
@@ -1048,6 +1050,7 @@ public class Loader {
 
     // called by Agent and Loader
     static boolean ApplyPatchesFromPackage(String packageName, Path jarPath, Phase phase) {
+        Logger.debug("Loader.ApplyPatchesFromPackage", packageName, jarPath.getFileName(), phase);
         ClassLoader modLoader = g_mod_loaders.get(jarPath);
         TransformedJar transformed = g_transformed_jars.get(jarPath);
         if (modLoader == null || transformed == null) {
