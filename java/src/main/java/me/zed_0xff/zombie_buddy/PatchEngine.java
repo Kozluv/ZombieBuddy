@@ -411,7 +411,6 @@ public final class PatchEngine {
                                     
                                     // If all parameters are special (e.g., only @Return), treat as matching methods with no parameters
                                     if (allParamsAreSpecial && paramTypes.length > 0) {
-                                        Logger.debug("hasNoParamMethod => true", "allParamsAreSpecial", allParamsAreSpecial, "paramTypes.length", paramTypes.length);
                                         hasNoParamMethod = true;
                                     }
 
