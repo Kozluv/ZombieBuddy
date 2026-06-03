@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
@@ -51,6 +52,8 @@ public class JarContext implements Closeable {
 
     private ClassFileLocator          m_curLocator = null;
     private TypePool                  m_curPool = null;
+    private final Map<String, String> m_shadowDescriptorMappings = new HashMap<>(); // shadow internal name → target internal name
+    private final Map<String, ShadowContext> m_shadowContexts = new HashMap<>(); // target binary name → access metadata
 
     /**
      * {@link TypePool.Default.ReaderMode#FAST} skips {@code Code}, so {@code LocalVariableTable} names never bind to parameters. {@link TypePool.Default.ReaderMode#EXTENDED}
@@ -149,6 +152,67 @@ public class JarContext implements Closeable {
 
     public boolean hasNew() {
         return !m_newClassBytes.isEmpty();
+    }
+
+    /** Shadow stub internal name ({@code pkg/Outer$Shadow}) → patched target internal name. Populated by {@link me.zed_0xff.zombie_buddy.transformers.bytebuddy.Unshadow#collectShadowDescriptorMappings}. */
+    public void putShadowDescriptorMapping(String shadowInternalName, String targetInternalName) {
+        if (shadowInternalName == null || targetInternalName == null) {
+            return;
+        }
+
+        m_shadowDescriptorMappings.put(shadowInternalName, targetInternalName);
+    }
+
+    public Map<String, String> shadowDescriptorMappings() {
+        return m_shadowDescriptorMappings.isEmpty() ? Map.of() : Map.copyOf(m_shadowDescriptorMappings);
+    }
+
+    /** Shadow stub internal → shadow field → target field; aggregated from {@link ShadowContext} entries. */
+    public Map<String, Map<String, String>> shadowFieldMappings() {
+        return aggregateShadowMappings(ctx -> ctx.shadowFieldMappings());
+    }
+
+    /** Shadow stub internal → shadow method → target method; aggregated from {@link ShadowContext} entries. */
+    public Map<String, Map<String, String>> shadowMethodMappings() {
+        return aggregateShadowMappings(ctx -> ctx.shadowMethodMappings());
+    }
+
+    private Map<String, Map<String, String>> aggregateShadowMappings(Function<ShadowContext, Map<String, Map<String, String>>> extract) {
+        if (m_shadowContexts.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<String, Map<String, String>> all = new HashMap<>();
+        for (ShadowContext ctx : m_shadowContexts.values()) {
+            for (var e : extract.apply(ctx).entrySet()) {
+                all.computeIfAbsent(e.getKey(), k -> new HashMap<>()).putAll(e.getValue());
+            }
+        }
+
+        return Map.copyOf(all);
+    }
+
+    public void putShadowContext(String targetBinaryName, ShadowContext ctx) {
+        if (targetBinaryName == null || ctx == null) {
+            return;
+        }
+
+        m_shadowContexts.compute(targetBinaryName, (k, existing) -> {
+            if (existing == null) {
+                return ctx;
+            }
+
+            existing.mergeFrom(ctx);
+            return existing;
+        });
+    }
+
+    public ShadowContext shadowContext(String targetBinaryName) {
+        return m_shadowContexts.get(targetBinaryName);
+    }
+
+    public Map<String, ShadowContext> shadowContexts() {
+        return m_shadowContexts.isEmpty() ? Map.of() : Map.copyOf(m_shadowContexts);
     }
 
     // writes m_newClassBytes to the given jar

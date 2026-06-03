@@ -14,18 +14,14 @@ public @interface Shadow {
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
     public @interface Field {
-        @Internal.Flags(inferFromTargetName = true, probeField = true)
-        String[] value() default {};                 // field name(s): empty = infer from parameter name; multiple = try in order
-        @Internal.Flags(targetElement = "value")
-        String[] name() default {};                  // alias for value()
-        Class<?> declaringType() default void.class; // the class that declares the field; void.class = infer from target class
-        boolean optional() default false;
+        // @Internal.Flags(inferFromTargetName = true, probeField = true)
+        String[] value() default {};
     }
 
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.METHOD)
     public @interface Method {
-        @Internal.Flags(inferFromTargetName = true, probeMethod = true)
+        // @Internal.Flags(inferFromTargetName = true, probeMethod = true)
         String[] value() default {};  // empty = infer from parameter name; multiple = try in order
     }
 

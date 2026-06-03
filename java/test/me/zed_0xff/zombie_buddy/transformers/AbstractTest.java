@@ -18,6 +18,7 @@ import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.jardump.AsmDump;
 import me.zed_0xff.zombie_buddy.transformers.asmtree.Converter;
 import me.zed_0xff.zombie_buddy.transformers.asmtree.Resolver;
+import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
 
 public abstract class AbstractTest {
@@ -104,7 +105,11 @@ public abstract class AbstractTest {
         private byte[] m_bytes;
 
         public TestClassContext(Class<?> cls) throws IOException {
-            super(cls.getName(), JarContext.forClass(cls.getName(), AbstractTest.getClassBytes(cls)));
+            this(cls, JarContext.forClass(cls.getName(), AbstractTest.getClassBytes(cls)));
+        }
+
+        public TestClassContext(Class<?> cls, JarContext jctx) throws IOException {
+            super(cls.getName(), jctx);
             m_bytes = AbstractTest.getClassBytes(cls);
         }
 
@@ -116,6 +121,15 @@ public abstract class AbstractTest {
             if (match.size() == 1) return match.getOnly();
 
             Logger.warn("Multiple methods found. Returning first match for", name);
+            return match.get(0);
+        }
+
+        public FieldDescription getField(String name) {
+            var match = getCurrentTypeDesc().getDeclaredFields().filter(named(name));
+            if (match.size() == 0) return null;
+            if (match.size() == 1) return match.getOnly();
+
+            Logger.warn("Multiple fields found. Returning first match for", name);
             return match.get(0);
         }
 

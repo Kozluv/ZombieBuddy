@@ -14,7 +14,7 @@ import java.util.stream.IntStream;
 public class Logger {
     private static final String ZB                = "[ZB]";
     private static final int MAX_ARG_LEN          = 128;
-    private static final int DEFAULT_MAX_LINE_LEN = 256;
+    private static final int DEFAULT_MAX_LINE_LEN = 400;
 
     private enum Channel { OUT, ERR }
     private static final Channel STDOUT = Channel.OUT;
@@ -235,7 +235,8 @@ public class Logger {
             }
         }
 
-        if (s.length() > MAX_ARG_LEN) s = s.substring(0, MAX_ARG_LEN - 3) + "...";
+        if (s.length() > MAX_ARG_LEN && (!(o instanceof Throwable)))
+            s = s.substring(0, MAX_ARG_LEN - 3) + "...";
         if (o instanceof String) return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
         return s;
     }

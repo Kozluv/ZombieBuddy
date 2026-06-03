@@ -86,7 +86,7 @@ abstract class AbstractTransformer extends Transformer {
             byte[] newBytes = cw.toByteArray();
             ctx.setClassBytes(newBytes);
 
-            return new Result(newBytes, true);
+            return new Result(newBytes, Resolution.REPLACE);
         } finally {
             m_ctx = null;
         }

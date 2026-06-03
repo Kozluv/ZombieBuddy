@@ -15,7 +15,11 @@ final class ModJarInjector {
     private ModJarInjector() {}
 
     static ClassLoader inject(TransformedJar jar) {
-        ClassLoader parent = Thread.currentThread().getContextClassLoader();
+        // Parent must be the agent loader so patch jars can see shaded deps (e.g. zb.com.google.gson).
+        ClassLoader parent = ZombieBuddy.class.getClassLoader();
+        if (parent == null) {
+            parent = Thread.currentThread().getContextClassLoader();
+        }
         if (parent == null) {
             parent = ClassLoader.getSystemClassLoader();
         }

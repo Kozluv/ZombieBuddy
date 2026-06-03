@@ -295,6 +295,11 @@ public final class PatchEngine {
             builder = builder
                 .type(SyntaxSugar.typeMatcher(className))
                 .transform((bl, td, cl, mo, pd) -> {
+                    // Advice/Delegation in game classes resolve patch types via the instrumented class loader.
+                    if (cl != null && cl != modLoader) {
+                        ModJarInjector.exposeJarInClassLoader(transformedJar, cl);
+                    }
+
                     var result = bl;
                     
                     // Apply stacked Advice patches per method
@@ -563,10 +568,6 @@ public final class PatchEngine {
                     }
                     
                     // Apply MethodDelegation patches (only one per method)
-                    if (!methodDelegations.isEmpty() && cl != null && cl != modLoader) {
-                        ModJarInjector.exposeJarInClassLoader(transformedJar, cl);
-                    }
-
                     for (var entry : methodDelegations.entrySet()) {
                         String methodName = entry.getKey();
                         Class<?> delegationClass = entry.getValue();

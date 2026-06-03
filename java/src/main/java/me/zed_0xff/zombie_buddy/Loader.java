@@ -12,7 +12,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.instrument.Instrumentation;
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -1103,20 +1103,14 @@ public class Loader {
     static void try_call_main(Class<?> cls, Phase phase) {
         final String methodName = phase == Phase.PREMAIN ? "premain" : "main";
 
-        Method method = null;
-        try {
-            method = cls.getMethod(methodName, String[].class);
-        } catch (java.lang.NoSuchMethodException e) {
-            return;
-        } catch (Throwable t) {
-            Logger.error(cls + ": error getting " + methodName + "(): " + t);
+        MethodHandle mh = Reflect.on(cls).getMethodHandle(void.class, new Class<?>[] { String[].class }, methodName);
+        if (mh == null) {
             return;
         }
 
-        // method cannot be null here if getMethod() succeeded
         try {
             String[] args = {}; // no arguments for now
-            method.invoke(null, (Object) args);
+            mh.invoke((Object) args);
             Logger.info(cls + ": method " + methodName + "() invoked successfully");
         } catch (Throwable t) {
             Logger.error(cls + ": error invoking " + methodName + "(): " + t);

@@ -379,16 +379,21 @@ task testJar(type: Jar) {
     dependsOn compileTestjarJava
 }
 
-task patchesJar(type: Jar) {
+// Relocate gson refs at jar build time (matches shadowJar); runtime pipeline must not rewrite again.
+task patchesJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
     archiveBaseName.set("patches")
+    configurations = []
     from sourceSets.patches.output
     dependsOn compilePatchesJava
+    relocate 'com.google.gson', 'zb.com.google.gson'
 }
 
-task experimentalJar(type: Jar) {
+task experimentalJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
     archiveBaseName.set("experimental")
+    configurations = []
     from sourceSets.experimental.output
     dependsOn compileExperimentalJava
+    relocate 'com.google.gson', 'zb.com.google.gson'
 }
 
 shadowJar {

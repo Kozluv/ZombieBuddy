@@ -25,7 +25,7 @@ public abstract class AbstractTransformer extends Transformer {
             if (isModified()) {
                 byte[] newBytes = cw.toByteArray();
                 ctx.setClassBytes(newBytes);
-                return new Result(newBytes, true);
+                return new Result(newBytes, Resolution.REPLACE);
             } else {
                 return NOOP_RESULT;
             }

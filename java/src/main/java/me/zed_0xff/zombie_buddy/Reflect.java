@@ -5,6 +5,9 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.invoke.VarHandle;
+
+import org.objectweb.asm.Type;
+import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -130,7 +133,9 @@ public class Reflect {
         if (mh != null) return mh;
 
         mh = resolve.get();
-        if (mh != null) {
+        if (mh == null) {
+            Logger.once.warn("fastcall resolver returned null:", resolve);
+        } else {
             _mh_cache.put(resolve, mh);
         }
         return mh;
@@ -344,7 +349,7 @@ public class Reflect {
         return m_obj instanceof Class<?> c ? c : m_obj.getClass();
     }
 
-    private ClassInfo getClassInfo(Class<?> cls) {
+    private static ClassInfo getClassInfo(Class<?> cls) {
         ClassInfo result = _cache.computeIfAbsent(cls, c -> {
             try {
                 return new ClassInfo(c);
@@ -378,6 +383,10 @@ public class Reflect {
 
     public boolean isPresent() {
         return m_obj != null;
+    }
+
+    public VarHandle getVarHandle(String fieldDescriptor, String... names) {
+        return getVarHandle(descriptorClass(fieldDescriptor), names);
     }
 
     // call it once and cache the result
@@ -441,6 +450,20 @@ public class Reflect {
         return getMethodHandle(mt, names);
     }
 
+    public MethodHandle getMethodHandle(String methodDescriptor, String... names) {
+        Class<?> cls = getType();
+        if (cls == null) {
+            return null;
+        }
+
+        try {
+            MethodType mt = MethodType.fromMethodDescriptorString(methodDescriptor, cls.getClassLoader());
+            return getMethodHandle(mt, names);
+        } catch (IllegalArgumentException | TypeNotPresentException e) {
+            return null;
+        }
+    }
+
     // call it once and cache the result
     public MethodHandle getMethodHandle(MethodType mt, String... names) {
         Class<?> cls = getType();
@@ -456,20 +479,56 @@ public class Reflect {
             Object v = methodCache.get(cacheKey);
 
             if (v == null) {
-                try {
-                    v = cinfo.lookup.findVirtual(cls, methodName, mt);
-                } catch (NoSuchMethodException | IllegalAccessException e) {
-                    try {
-                        v = cinfo.lookup.findStatic(cls, methodName, mt);
-                    } catch (NoSuchMethodException | IllegalAccessException e2) {
-                        v = MISS;
-                    }
+                v = lookupMethodHandle(cinfo, cls, methodName, mt);
+                if (v == null) {
+                    v = MISS;
                 }
 
                 methodCache.put(cacheKey, v);
             }
 
             if (v instanceof MethodHandle mh) return mh;
+        }
+
+        return null;
+    }
+
+    private static Object lookupMethodHandle(ClassInfo cinfo, Class<?> cls, String methodName, MethodType mt) {
+        try {
+            return cinfo.lookup.findVirtual(cls, methodName, mt);
+        } catch (NoSuchMethodException | IllegalAccessException ignored) {
+        }
+
+        try {
+            return cinfo.lookup.findStatic(cls, methodName, mt);
+        } catch (NoSuchMethodException | IllegalAccessException ignored) {
+        }
+
+        Method declared = findDeclaredMethod(cls, methodName, mt);
+        if (declared == null) {
+            return null;
+        }
+
+        ClassInfo declaringInfo = getClassInfo(declared.getDeclaringClass());
+        if (declaringInfo == null || declaringInfo.lookup == null) {
+            return null;
+        }
+
+        try {
+            return declaringInfo.lookup.unreflect(declared);
+        } catch (IllegalAccessException e) {
+            Logger.once.error("unreflect failed for " + declared.getDeclaringClass().getName() + "." + methodName + mt + ": " + e);
+            return null;
+        }
+    }
+
+    private static Method findDeclaredMethod(Class<?> cls, String methodName, MethodType mt) {
+        Class<?>[] params = mt.parameterArray();
+        for (Class<?> c = cls; c != null && c != Object.class; c = c.getSuperclass()) {
+            try {
+                return c.getDeclaredMethod(methodName, params);
+            } catch (NoSuchMethodException ignored) {
+            }
         }
 
         return null;
@@ -558,5 +617,42 @@ public class Reflect {
             Logger.printStackTrace(t);
             return false;
         }
+    }
+
+    public static Class<?> descriptorClass(String descriptor) {
+        Type type = Type.getType(descriptor);
+
+        return switch (type.getSort()) {
+            case Type.BOOLEAN -> boolean.class;
+            case Type.BYTE    -> byte.class;
+            case Type.SHORT   -> short.class;
+            case Type.CHAR    -> char.class;
+            case Type.INT     -> int.class;
+            case Type.LONG    -> long.class;
+            case Type.FLOAT   -> float.class;
+            case Type.DOUBLE  -> double.class;
+            case Type.ARRAY, Type.OBJECT -> {
+                try {
+                    yield Class.forName(type.getClassName());
+                } catch (ClassNotFoundException e) {
+                    throw new IllegalArgumentException("class not found for descriptor: " + descriptor, e);
+                }
+            }
+            default -> throw new IllegalArgumentException("unsupported descriptor: " + descriptor);
+        };
+    }
+
+    public boolean setAccessible(boolean accessible) {
+        Logger.debug("Reflect.setAccessible", m_obj);
+        if (m_obj instanceof AccessibleObject ao) {
+            try {
+                ao.setAccessible(accessible);
+                return true;
+            } catch (SecurityException e) {
+                Logger.printStackTrace(e);
+                return false;
+            }
+        }
+        return false;
     }
 }

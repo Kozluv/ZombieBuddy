@@ -251,7 +251,7 @@ public class Exposer {
                             // private KahluaTable createTableStructure(KahluaTable base, String[] structure)
                             container = (KahluaTable) Reflect
                                 .fastcall(() -> Reflect.on(exposer).getMethodHandle(KahluaTable.class, new Class<?>[] {KahluaTable.class, String[].class}, "createTableStructure"))
-                                .invokeExact(staticBase, packageStructure);
+                                .invoke(exposer, staticBase, packageStructure);
 
                             if (container == null) {
                                 Logger.error("Failed to create table structure for static method exposure of " + cls.getName());
@@ -264,7 +264,7 @@ public class Exposer {
                         exposer.exposeMethod(cls, method, method.getName(), staticBase);
                     }
                 } catch (Throwable t) {
-                    Logger.error("error exposing method", cls, method, t.getMessage());
+                    Logger.error("error exposing method", t);
                 }
             }
         }

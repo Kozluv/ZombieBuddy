@@ -24,10 +24,11 @@ import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.Utils;
 import me.zed_0xff.zombie_buddy.annotations.Patch;
 import me.zed_0xff.zombie_buddy.jardump.AsmDump;
-import me.zed_0xff.zombie_buddy.transformers.asmtree.Binder;
+import me.zed_0xff.zombie_buddy.transformers.bytebuddy.Unshadow;
 import me.zed_0xff.zombie_buddy.transformers.asmtree.Converter;
 import me.zed_0xff.zombie_buddy.transformers.asmtree.Publicizer;
 import me.zed_0xff.zombie_buddy.transformers.asmtree.Resolver;
+import me.zed_0xff.zombie_buddy.transformers.asmtree.ShadowRewrite;
 import me.zed_0xff.zombie_buddy.transformers.bytebuddy.ZB2Compat;
 
 /** Shared transformer registry and jar/class pipeline (used by Loader and jardump). */
@@ -57,7 +58,8 @@ public final class Pipeline {
         new TransSpec("compat",   ZB2Compat.class,       "Convert ZB 2.x @Patch annotations", TransOpt.DEFAULT),
         new TransSpec("resolve",  Resolver.class,        "Resolve alternative names in annotations", TransOpt.DEFAULT),
         new TransSpec("convert",  Converter.class,       "Convert ZombieBuddy annotations to ByteBuddy annotations", TransOpt.DEFAULT),
-        new TransSpec("bind",     Binder.class,          "Bind @Shadow classes", TransOpt.DEFAULT),
+        new TransSpec("bind",     Unshadow.class,          "Remap @Shadow types to patch targets", TransOpt.DEFAULT),
+        new TransSpec("shadow",   ShadowRewrite.class,   "Rewrite shadow target access via VarHandle/MethodHandle", TransOpt.DEFAULT),
         new TransSpec("pub-all",  Publicizer.class,      "Publicize all members unconditionally"),
         new TransSpec("pub-cond", Publicizer.class,      "Publicize if any annotations were converted by the previous steps", TransOpt.CONDITIONAL, TransOpt.DEFAULT),
         new TransSpec("none",     NoopTransformer.class, "Do nothing (for testing/debugging purposes)"),
@@ -158,6 +160,8 @@ public final class Pipeline {
     }
 
     public void transformJarClasses(JarContext jctx, List<String> classNames) {
+        Unshadow.collectShadowDescriptorMappings(jctx, classNames);
+
         for (String className : classNames) {
             byte[] classBytes = jctx.getClassBytes(className);
             if (classBytes == null) continue;

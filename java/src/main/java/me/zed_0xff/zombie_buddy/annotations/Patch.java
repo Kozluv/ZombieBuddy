@@ -181,7 +181,7 @@ public @interface Patch {
         boolean readOnly() default false;
         boolean optional() default false;
 
-        public class Converter extends Internal.AnnConverterBase {
+        public static class Converter extends Internal.AnnConverterBase {
             public AnnotationNode convert(AnnotationNode src, Object o, ClassContext ctx) throws Throwable {
                 if (!(o instanceof ParameterNode node))
                     throw new IllegalArgumentException("Expected ParameterNode, got " + o.getClass().getName());
