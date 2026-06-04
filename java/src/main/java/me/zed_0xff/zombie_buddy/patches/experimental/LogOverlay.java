@@ -151,6 +151,20 @@ public class LogOverlay {
         lines.clear();
     }
     
+    private static boolean _codeSmallFontExists = true;
+    private static UIFont getFont(TextManager textMgr) {
+        if (textMgr.font.isEmpty()) return UIFont.Small;
+
+        if (!_codeSmallFontExists) return UIFont.Code;
+
+        try {
+            return UIFont.CodeSmall;
+        } catch (Throwable t) { // B41: java.lang.NoSuchFieldError: CodeSmall
+            _codeSmallFontExists = false;
+            return UIFont.Code;
+        }
+    }
+    
     public static void draw() {
         if (!enabled || lines.isEmpty()) return;
         
@@ -171,7 +185,7 @@ public class LogOverlay {
             return;
         }
         
-        var font = textMgr.font.isEmpty() ? UIFont.Small : UIFont.CodeSmall;
+        var font = getFont(textMgr);
         var lineHeight = (int) textMgr.MeasureStringY(font, "Ay") + 2;
         var scrH = Core.getInstance().getScreenHeight();
         int topLimit = Utils.isHiRes() ? 128 : 64;
