@@ -17,13 +17,14 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 
 import org.luaj.kahluafork.compiler.FuncState;
-import se.krka.kahlua.integration.LuaReturn;
 import se.krka.kahlua.luaj.compiler.LuaCompiler;
+import se.krka.kahlua.vm.Coroutine;
 import se.krka.kahlua.vm.KahluaTable;
 import se.krka.kahlua.vm.KahluaThread;
 import se.krka.kahlua.vm.LuaClosure;
 import zombie.Lua.LuaManager;
 
+import me.zed_0xff.zombie_buddy.Callbacks;
 import me.zed_0xff.zombie_buddy.LuaJSON;
 import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.patches.experimental.HttpServer;
@@ -43,8 +44,19 @@ public class LuaHandler implements HttpHandler {
         }
     }
 
+    private static boolean _lua_ready = false;
+    static {
+        Callbacks.beforeLuaInit.register(() -> { _lua_ready = false; });
+        Callbacks.afterLuaInit.register(()  -> { _lua_ready = true; });
+    }
+
     private static void handleRequest(HttpExchange exchange) throws Exception {
         HttpServer.logRequest(exchange);
+        if (!_lua_ready) {
+            HttpServer.sendResponse(exchange, 503, "Lua not initialized yet\n");
+            return;
+        }
+
         if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
             HttpServer.sendResponse(exchange, 405, "Method not allowed. Use POST.\n");
             return;
@@ -126,12 +138,7 @@ public class LuaHandler implements HttpHandler {
                 closure = LuaCompiler.loadstring(luaCode, fileName, sharedEnv);
 
                 if (i < chunks.size() - 1) {
-                    LuaReturn ret = LuaManager.caller.protectedCall(LuaManager.thread, closure, new Object[0]);
-                    if (!ret.isSuccess()) {
-                        errCode.set(1);
-                        errorPayloadRef.set(LuaJSON.serializeLuaReturn(ret, HttpServer.extractErrorsFromList(errorListSizeBefore)));
-                        return;
-                    }
+                    callNoArgs(LuaManager.thread, closure);
                 }
             }
 
@@ -148,15 +155,9 @@ public class LuaHandler implements HttpHandler {
                     resultRef.set(ret);
                 }
             } else {
-                LuaReturn luaReturn = LuaManager.caller.protectedCall(LuaManager.thread, closure, new Object[0]);
-
-                if (luaReturn.isSuccess()) {
-                    if (!luaReturn.isEmpty()) {
-                        resultRef.set(luaReturn.getFirst());
-                    }
-                } else {
-                    errCode.set(1);
-                    errorPayloadRef.set(LuaJSON.serializeLuaReturn(luaReturn, HttpServer.extractErrorsFromList(errorListSizeBefore)));
+                Object ret = callNoArgs(LuaManager.thread, closure);
+                if (ret != null) {
+                    resultRef.set(ret);
                 }
             }
         } catch (Throwable t) {
@@ -184,6 +185,16 @@ public class LuaHandler implements HttpHandler {
             }
             FuncState.currentFile = null;
             FuncState.currentfullFile = null;
+        }
+    }
+
+    private static Object callNoArgs(KahluaThread thread, Object functionObject) {
+        Coroutine coroutine = thread.getCurrentCoroutine();
+        int oldTop = coroutine.getTop();
+        try {
+            return thread.call(functionObject, null, null, null);
+        } finally {
+            coroutine.setTop(oldTop);
         }
     }
 

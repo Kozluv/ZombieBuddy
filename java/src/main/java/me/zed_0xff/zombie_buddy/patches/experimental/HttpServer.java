@@ -35,7 +35,7 @@ public class HttpServer {
     private static HttpServer instance;
     
     // Timeout for waiting for Lua task execution (in milliseconds)
-    public static long luaTaskTimeoutMs = 1000;
+    public static long luaTaskTimeoutMs = 5000;
     public static int g_verbosity = 0;
     
     // Queue for Lua tasks to be executed on the main thread (for dedicated servers)
@@ -127,6 +127,11 @@ public class HttpServer {
         return (Thread) vh_gameThread.get();
     }
 
+    private static Thread activeLoadingThread() {
+        Thread loader = GameLoadingState.loader;
+        return loader != null && loader.isAlive() ? loader : null;
+    }
+
     /** True when the current thread may run queued HTTP Lua work. */
     private static boolean canDrainLuaQueue() {
         if (LuaManager.thread == null) {
@@ -137,6 +142,11 @@ public class HttpServer {
         Thread owner = luaOwnerThread();
         if (owner != null && owner == current) {
             return true;
+        }
+
+        Thread loader = activeLoadingThread();
+        if (loader != null) {
+            return loader == current;
         }
 
         Thread game = gameThread();
@@ -205,8 +215,7 @@ public class HttpServer {
     }
 
     private static long effectiveLuaTaskTimeoutMs() {
-        Thread loader = GameLoadingState.loader;
-        if (loader != null && loader.isAlive() && loader == luaOwnerThread()) {
+        if (activeLoadingThread() != null) {
             return Math.max(luaTaskTimeoutMs, LOADING_LUA_TASK_TIMEOUT_MS);
         }
 
