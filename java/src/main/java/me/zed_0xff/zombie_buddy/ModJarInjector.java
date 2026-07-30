@@ -18,7 +18,15 @@ final class ModJarInjector {
 
     static ClassLoader inject(TransformedJar jar) {
         ClassLoader parent = parentLoader();
-        HashMap<String, byte[]> definitions = new HashMap<>(jar.classes());
+        HashMap<String, byte[]> definitions = new HashMap<>();
+        for (var entry : jar.classes().entrySet()) {
+            String name = entry.getKey();
+            try {
+                parent.loadClass(name);
+            } catch (ClassNotFoundException ignored) {
+                definitions.put(name, entry.getValue());
+            }
+        }
         byte[] manifest = jar.resources().get(JarFile.MANIFEST_NAME);
         if (manifest != null) {
             definitions.put(JarFile.MANIFEST_NAME, manifest);
@@ -138,6 +146,17 @@ final class ModJarInjector {
     }
 
     private static boolean shouldExposeToGameLoader(String className, Set<String> patchRoots, Set<String> packagePrefixes) {
+        // Never expose classes already present in the ZB loader — they are ZB infrastructure
+        // and will reach the game through normal parent delegation, not injection.
+        // Without this guard, a patch in the base me.zed_0xff.zombie_buddy package would cause
+        // the package-prefix logic to match Loader, Reflect, Exposer, etc., injecting them into
+        // the game loader via UsingUnsafe and creating a second copy with independent static state.
+        ClassLoader zbLoader = parentLoader();
+        try {
+            zbLoader.loadClass(className);
+            return false;
+        } catch (ClassNotFoundException ignored) {}
+
         if (patchRoots.contains(className)) {
             return true;
         }
