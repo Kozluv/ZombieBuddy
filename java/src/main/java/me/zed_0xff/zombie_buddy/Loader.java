@@ -136,6 +136,17 @@ public class Loader {
     static final Map<Path, ClassLoader> g_mod_loaders = new ConcurrentHashMap<>();
     static final Map<Path, TransformedJar> g_transformed_jars = new ConcurrentHashMap<>();
 
+    static byte[] getTransformedClassBytes(String className) {
+        for (TransformedJar jar : g_transformed_jars.values()) {
+            byte[] bytes = jar.classes().get(className);
+            if (bytes != null) {
+                return bytes;
+            }
+        }
+
+        return null;
+    }
+
     static final String BUNDLED_PATCHES_JAR = "patches.jar";
     static final String BUNDLED_EXPERIMENTAL_JAR = "experimental.jar";
 
@@ -561,7 +572,9 @@ public class Loader {
                 TransformedJar transformed = jarBytes != null
                         ? Pipeline.transformPatchJar(jarBytes, packageName)
                         : Pipeline.transformPatchJar(cacheKey, packageName);
-                modLoader = ModJarInjector.inject(transformed);
+                modLoader = shouldMergePatchJar(cacheKey, jarBytes)
+                        ? ModJarInjector.injectMerged(transformed)
+                        : ModJarInjector.inject(transformed);
                 g_mod_loaders.put(cacheKey, modLoader);
                 g_transformed_jars.put(cacheKey, transformed);
                 Logger.info("loaded transformed mod jar", cacheKey);
@@ -572,6 +585,15 @@ public class Loader {
         }
 
         return ApplyPatchesFromPackage(packageName, cacheKey, phase);
+    }
+
+    private static boolean shouldMergePatchJar(Path cacheKey, byte[] jarBytes) {
+        if (jarBytes != null) {
+            return true;
+        }
+
+        Path fileName = cacheKey.getFileName();
+        return fileName == null || !"testpatches.jar".equals(fileName.toString());
     }
 
     /** Transform {@code jarPath} and define its classes on a mod {@link ClassLoader}. Cached per canonical jar path. */

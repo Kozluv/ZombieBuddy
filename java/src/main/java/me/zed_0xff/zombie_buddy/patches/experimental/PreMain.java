@@ -31,6 +31,8 @@ public class PreMain {
                         Logger.info("Using random port for HTTP server");
                     }
                 }
+
+                HttpServer.g_verbosity = Logger.getLevel();
                 String bindHost = (!Utils.isBlank(hostValue)) ? hostValue : "127.0.0.1";
                 HttpServer httpServer = new HttpServer(bindHost, serverPort, isRandomPort);
                 httpServer.start();
