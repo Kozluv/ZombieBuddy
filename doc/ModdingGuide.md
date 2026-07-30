@@ -150,7 +150,7 @@ package com.yourname.yourmod.patches;
 import me.zed_0xff.zombie_buddy.annotations.Patch;
 
 @Patch(className = "zombie.SomeGameClass", methodName = "someMethod", warmUp = true)
-public static class MyPatch {
+public class MyPatch {
     @Patch.OnEnter
     public static void enter() {
         System.out.println("[YourMod] Intercepted method call!");
@@ -169,7 +169,7 @@ Use `skipOn = true` in `@Patch.OnEnter`. The advice method must return a `boolea
 
 ```java
 @Patch(className = "zombie.SomeClass", methodName = "someMethod")
-public static class SkipExample {
+public class SkipExample {
     @Patch.OnEnter(skipOn = true)
     public static boolean enter() {
         if (shouldSkip) {
