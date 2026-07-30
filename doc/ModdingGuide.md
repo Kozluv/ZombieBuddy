@@ -56,6 +56,7 @@ Use a path that does not contain `client/` or `server/` (e.g. `media/java/YourMo
 - The Main class is **optional** - patches will be applied even if Main class doesn't exist
 - The JAR file must contain the package specified in `javaPkgName`
 - Only one `javaJarFile` and one `javaPkgName` entry per mod
+- [test isolation requires PZ restart, not just save reload](#13)
 
 ---
 
