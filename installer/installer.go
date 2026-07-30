@@ -14,7 +14,7 @@ import (
 	"sort"
 	"strings"
 
-    "github.com/andygrunwald/vdf"
+	"github.com/andygrunwald/vdf"
 )
 
 const (
@@ -1109,14 +1109,14 @@ func stripZombieBuddyLaunchOptions(options string) (string, bool) {
 }
 
 func parseVDFMap(path string) (map[string]interface{}, error) {
-    f, err := os.Open(path)
-    if err != nil {
-        return nil, err
-    }
-    defer f.Close()
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
 
-    p := vdf.NewParser(f)
-    return p.Parse()
+	p := vdf.NewParser(f)
+	return p.Parse()
 }
 
 func navigateMap(m map[string]interface{}, path ...string) (map[string]interface{}, error) {
