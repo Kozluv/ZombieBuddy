@@ -1,5 +1,5 @@
 desc 'build'
-task :build => ["build:unstable", "build:42_12", "sign_authors"]
+task :build => ["build:unstable", "build:42_12", "authors:sign"]
 
 desc 'clean the project'
 task :clean do
@@ -30,12 +30,5 @@ namespace :build do
     Dir.chdir("java") do
       sh "gradle build --warning-mode all -PjavaVersion=17 -PgameClasspath=#{cp}"
     end
-  end
-end
-
-desc 'sign authors'
-task :sign_authors do
-  Dir.chdir("java") do
-    sh "gradle signAuthorsJson"
   end
 end
