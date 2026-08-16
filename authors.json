@@ -1,5 +1,5 @@
 {
-    "updated_at": "2026-05-01T00:00:00Z",
+    "updated_at": "2026-08-16T00:00:00Z",
     "authors": [
         {
             "id": 76561198043849998,
@@ -42,6 +42,13 @@
                 "0f99c4e5bfe0c9de71569c31bd627001aa17e9a714f9abe39038d0e51d176f88"
             ],
             "name": "老余"
+        },
+        {
+            "id": 76561198090292133,
+            "keys": [
+                "a140d928eed497c39427d85fb849a202e883146cca5dbfd3c8949796e1f7146a"
+            ],
+            "name": "Xutu"
         }
     ],
     "signature": "8f5fe50e12c372a7f05e4adf48730e1616ee79b6b330c5771cfb4382e1c030c9ff18909c3ceb5e5fbec88f05f122e151b2c0249bc9dcbd506d28585c9d3a3406"

@@ -22,6 +22,7 @@ import se.krka.kahlua.vm.KahluaThread;
 import zombie.Lua.LuaManager;
 import zombie.gameStates.GameLoadingState;
 
+import me.zed_0xff.zombie_buddy.Callbacks;
 import me.zed_0xff.zombie_buddy.Logger;
 import me.zed_0xff.zombie_buddy.Reflect;
 import me.zed_0xff.zombie_buddy.Utils;
@@ -44,6 +45,8 @@ public class HttpServer {
     private static VarHandle vh_gameThread = null;
     private static VarHandle vh_debugOwnerThread = null;
     private static boolean didResolveDebugOwnerThread = false;
+    // Thread captured at Lua-init time; fallback for B41 (no debugOwnerThread) and headless servers (no GameWindow).
+    private static volatile Thread capturedLuaThread = null;
 
     /** Request header: comma-separated global variable names to capture on error; their values are added to JSON as errorGlobals. The Lua code (e.g. ZBSpec.lua) sets those globals; we only read them when an error occurs. */
     private static final String HEADER_ERROR_GLOBALS = "X-ZombieBuddy-Error-Globals";
@@ -154,8 +157,10 @@ public class HttpServer {
             return true;
         }
 
-        // Dedicated server / no GameWindow: drain only on the recorded Lua owner thread.
-        return owner != null && owner == current;
+        // Final fallback: thread captured at Lua-init time. Handles B41 (no debugOwnerThread field)
+        // and dedicated servers where GameWindow is absent or gameThread is unresolvable.
+        Thread captured = capturedLuaThread;
+        return captured != null && captured == current;
     }
 
     /**
@@ -248,6 +253,7 @@ public class HttpServer {
         server.start();
 
         instance = this;
+        Callbacks.afterLuaInit.register(() -> capturedLuaThread = Thread.currentThread());
         Logger.info("HTTP server started at http://" + server.getAddress().getHostString() + ":" + port);
     }
 
