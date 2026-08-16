@@ -63,7 +63,14 @@
       "keys": [
         "465dda4ba32a507acfa85ce6952bdcc4ab3f0f389c0cf5a85f86f7e6762ea785"
       ]
+    },
+    {
+      "id": 76561197988649366,
+      "name": "Kio-",
+      "keys": [
+        "0ae56541e4aa658a2c907845f721ae0476b5e32b5d042c5107c5c352cb836116"
+      ]
     }
   ],
-  "signature": "c94723619467d26cca61ac1d0dd3d3ff8d4e77f6aea7fc5e2087753473f6c6dc91cc4522abd2f14cc0366c0ba77d6927f568ae23f6e996f3eb1cb15766c5ae0a"
+  "signature": "a83de9048a51c91c443c94548e1ebd3eea2daa785646b84f5059eb28da1bd7a02e611b70131387699cea59327de6d2f6ec8ad381b8142865e98b96cee0cdfb05"
 }
